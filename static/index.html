@@ -1,0 +1,190 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>Hisense Remote</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="5" width="20" height="14" rx="2"/>
+            <path d="M8 19h8"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Hisense Remote</h1>
+          <p id="status" class="status">Not connected</p>
+        </div>
+      </div>
+      <button id="settings-btn" class="icon-btn" aria-label="Settings">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+          <circle cx="12" cy="12" r="3"/>
+          <path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/>
+        </svg>
+      </button>
+    </header>
+
+    <main id="remote" class="remote hidden">
+      <section class="voice-panel" aria-label="Voice assistant">
+        <div class="voice-header">
+          <div>
+            <h2>Assistant</h2>
+            <p id="voice-status" class="voice-status">Say or type a command</p>
+          </div>
+          <button id="voice-mic-btn" class="voice-mic" type="button" aria-label="Hold to speak">
+            <span class="voice-mic-ring" aria-hidden="true"></span>
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8">
+              <path d="M12 2a3 3 0 0 0-3 3v6a3 3 0 0 0 6 0V5a3 3 0 0 0-3-3z"/>
+              <path d="M19 11a7 7 0 0 1-14 0M12 18v4M8 22h8"/>
+            </svg>
+          </button>
+        </div>
+        <p id="voice-transcript" class="voice-transcript hidden"></p>
+        <form id="voice-form" class="voice-form">
+          <input
+            id="voice-input"
+            type="text"
+            placeholder='Try "Play Inception", "Press down", or "Open Netflix"'
+            autocomplete="off"
+            enterkeyhint="go"
+          >
+          <button id="voice-send-btn" class="voice-send" type="submit">Go</button>
+        </form>
+        <p id="voice-result" class="voice-result hidden"></p>
+        <p id="voice-hint" class="voice-hint">Hold mic and speak — play movies, open apps, navigate, or type text.</p>
+      </section>
+
+      <section class="top-row">
+        <button class="key key-power" data-key="power" aria-label="Power">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 2v10M18.36 6.64a9 9 0 1 1-12.73 0"/>
+          </svg>
+        </button>
+        <button class="key" data-key="mute" aria-label="Mute">Mute</button>
+        <button class="key key-home" data-key="home" aria-label="Home">Home</button>
+        <button class="key" data-key="back" aria-label="Back">Back</button>
+      </section>
+
+      <section class="volume-row">
+        <button class="key key-round" data-key="volume_down" aria-label="Volume down">−</button>
+        <span class="label">Volume</span>
+        <button class="key key-round" data-key="volume_up" aria-label="Volume up">+</button>
+      </section>
+
+      <section class="dpad">
+        <button class="key dpad-btn dpad-up" data-key="up" aria-label="Up">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 4l-8 8h16z"/></svg>
+        </button>
+        <button class="key dpad-btn dpad-left" data-key="left" aria-label="Left">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M4 12l8-8v16z"/></svg>
+        </button>
+        <button class="key dpad-btn dpad-ok" data-key="ok" aria-label="OK">OK</button>
+        <button class="key dpad-btn dpad-right" data-key="right" aria-label="Right">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M20 12l-8-8v16z"/></svg>
+        </button>
+        <button class="key dpad-btn dpad-down" data-key="down" aria-label="Down">
+          <svg viewBox="0 0 24 24" fill="currentColor"><path d="M12 20l8-8H4z"/></svg>
+        </button>
+      </section>
+
+      <section class="media-row">
+        <button class="key" data-key="rewind" aria-label="Rewind">⏪</button>
+        <button class="key" data-key="play" aria-label="Play">▶</button>
+        <button class="key" data-key="pause" aria-label="Pause">⏸</button>
+        <button class="key" data-key="fast_forward" aria-label="Fast forward">⏩</button>
+      </section>
+
+      <section class="apps-row">
+        <button class="key key-app" data-app="netflix">Netflix</button>
+        <button class="key key-app" data-app="youtube">YouTube</button>
+        <button class="key key-app" data-app="amazon">Prime</button>
+      </section>
+
+      <section class="numpad">
+        <button class="key" data-key="1">1</button>
+        <button class="key" data-key="2">2</button>
+        <button class="key" data-key="3">3</button>
+        <button class="key" data-key="4">4</button>
+        <button class="key" data-key="5">5</button>
+        <button class="key" data-key="6">6</button>
+        <button class="key" data-key="7">7</button>
+        <button class="key" data-key="8">8</button>
+        <button class="key" data-key="9">9</button>
+        <button class="key" data-key="menu">Menu</button>
+        <button class="key" data-key="0">0</button>
+        <button class="key" data-key="exit">Exit</button>
+      </section>
+    </main>
+
+    <div id="setup" class="setup">
+      <div class="setup-card">
+        <h2>Connect to your TV</h2>
+        <p id="setup-desc" class="setup-desc">Searching for your Roku TV on Wi‑Fi…</p>
+
+        <div id="discovering" class="discovering">
+          <div class="spinner" aria-hidden="true"></div>
+          <span>Looking for TVs nearby</span>
+        </div>
+
+        <div id="manual-setup" class="hidden">
+          <label for="tv-ip">TV IP address</label>
+          <div class="input-row">
+            <input id="tv-ip" type="text" inputmode="decimal" placeholder="192.168.1.100" autocomplete="off">
+            <button id="scan-btn" class="btn-secondary" type="button">Scan</button>
+          </div>
+        </div>
+
+        <div id="scan-results" class="scan-results hidden"></div>
+
+        <label for="platform">TV platform</label>
+        <select id="platform">
+          <option value="roku" selected>Roku TV</option>
+          <option value="auto">Auto-detect</option>
+          <option value="vidaa">VIDAA (native Hisense)</option>
+        </select>
+
+        <label class="checkbox-label">
+          <input id="use-ssl" type="checkbox" checked>
+          Use SSL (VIDAA — uncheck if connection fails)
+        </label>
+
+        <button id="connect-btn" class="btn-primary">Connect</button>
+        <p id="setup-error" class="error hidden"></p>
+
+        <div id="auth-section" class="auth-section hidden">
+          <hr>
+          <p>Your TV may show a 4-digit PIN. Enter it below to pair.</p>
+          <button id="auth-start-btn" class="btn-secondary" type="button">Show PIN on TV</button>
+          <div class="input-row">
+            <input id="auth-code" type="text" inputmode="numeric" maxlength="4" placeholder="1234">
+            <button id="auth-verify-btn" class="btn-primary" type="button">Pair</button>
+          </div>
+        </div>
+      </div>
+
+      <details class="help">
+        <summary>How to find your TV IP</summary>
+        <ul>
+          <li><strong>VIDAA:</strong> Settings → Network → Network Information</li>
+          <li><strong>Roku:</strong> Settings → Network → About</li>
+          <li><strong>Google TV:</strong> Settings → Network → IP address</li>
+        </ul>
+      </details>
+    </div>
+  </div>
+
+  <div id="toast" class="toast hidden" role="status"></div>
+
+  <script src="/static/app.js?v=21"></script>
+</body>
+</html>

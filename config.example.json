@@ -1,0 +1,14 @@
+{
+  "host": "192.168.0.154",
+  "platform": "roku",
+  "use_ssl": null,
+  "home_channel_id": "562859",
+  "installed_apps": [
+    "netflix",
+    "paramount"
+  ],
+  "developer": {
+    "username": "rokudev",
+    "installer_url": "http://192.168.0.154"
+  }
+}

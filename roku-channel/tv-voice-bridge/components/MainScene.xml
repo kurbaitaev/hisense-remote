@@ -1,0 +1,31 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<component name="MainScene" extends="Scene">
+  <children>
+    <Rectangle
+      id="bg"
+      width="1280"
+      height="720"
+      color="0x1A1A2E" />
+    <Label
+      id="title"
+      translation="[80,260]"
+      width="1120"
+      horizAlign="center"
+      font="font:LargeBoldSystemFont"
+      text="TV Voice Bridge" />
+    <Label
+      id="subtitle"
+      translation="[80,340]"
+      width="1120"
+      horizAlign="center"
+      font="font:MediumSystemFont"
+      text="Developer channel active — control the TV from your laptop remote." />
+    <Label
+      id="hint"
+      translation="[80,420]"
+      width="1120"
+      horizAlign="center"
+      font="font:SmallSystemFont"
+      text="Press Home to return. Voice commands run via hisense-remote on your Mac." />
+  </children>
+</component>

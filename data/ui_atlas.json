@@ -1,0 +1,72 @@
+{
+  "tv": "Hisense Roku 192.168.0.154",
+  "ecp_mode": "limited",
+  "ecp_transport": "ECP-2 WebSocket bypasses many HTTP 403s",
+  "signals": {
+    "query-active-app": {
+      "quality": "observed",
+      "fields": ["id", "name", "type", "subtype", "ui-location"],
+      "notes": "Home and Search share id 562859 — distinguish by name"
+    },
+    "query-textedit-state": {
+      "quality": "observed_on_roku_search_only",
+      "fields": ["textedit-id", "text"],
+      "notes": "textedit-id 54 (example) means in search field; none means not in field. Netflix/Paramount always return none"
+    },
+    "query-media-player": {
+      "quality": "observed_when_exposed",
+      "fields": ["state", "plugin id/name", "position", "duration"],
+      "states": ["play", "pause", "buffer", "close", "none"],
+      "notes": "Use state=play to confirm playback. Player node may be missing when idle"
+    },
+    "query-device-info": {
+      "quality": "observed",
+      "fields": ["power-mode", "ecp-setting-mode", "developer-enabled", "ui-resolution"]
+    },
+    "query-sgnodes": {
+      "quality": "unavailable",
+      "notes": "Requires developer mode + enabled ECP; only sideloaded channel UI"
+    }
+  },
+  "screens": {
+    "home": {
+      "app_id": "562859",
+      "app_name": "Home",
+      "ui_location": "home",
+      "readable": ["app", "ui-location"],
+      "blind": ["row focus", "tiles", "buttons"]
+    },
+    "roku_search_typing": {
+      "app_id": "562859",
+      "app_name": "Search",
+      "textedit": "textedit-id != none",
+      "readable": ["search bar text", "in-field focus"],
+      "blind": ["result rows", "provider icons"]
+    },
+    "roku_search_results": {
+      "app_id": "562859",
+      "app_name": "Search",
+      "textedit": "textedit-id == none",
+      "readable": ["out of search field"],
+      "blind": ["which result", "which provider highlighted"]
+    },
+    "paramount": {
+      "app_id": "31440",
+      "app_name": "Paramount Plus",
+      "readable": ["app", "player state"],
+      "blind": ["search bar", "menus", "buttons", "results"],
+      "in_app_search_strategy": "deep-link launch with param-keyword, then OK OK; cannot read typed text"
+    },
+    "netflix": {
+      "app_id": "12",
+      "app_name": "Netflix",
+      "readable": ["app", "player state"],
+      "blind": ["search bar", "menus", "buttons", "results"],
+      "in_app_search_strategy": "deep-link launch with search keyword, then OK OK"
+    },
+    "playing": {
+      "detect": "media-player state in play|buffer|pause",
+      "readable": ["player state", "plugin"]
+    }
+  }
+}

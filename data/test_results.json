@@ -1,0 +1,116 @@
+[
+  {
+    "command": "Play The Social Network on Netflix",
+    "title": "The Social Network",
+    "app": "netflix",
+    "search_text": "The Social Network",
+    "method": "deep-link-netflix",
+    "passed": true,
+    "elapsed_s": 26.4,
+    "verify": {
+      "playing": true,
+      "on_app": true,
+      "app_id": "12",
+      "app_name": "Netflix",
+      "player_state": "play",
+      "screen": "playing",
+      "summary": "Video playing | Netflix (id 12) | player=play | note=Playing via Netflix"
+    },
+    "steps_tail": "/results (inferred after deep link) | Netflix (id 12) | player=close | note=Inferred: deep-linked into Netflix with a search term\n  focus: in-app focus not exposed\n  blind: search bar, menus, buttons, result list\n\u2022 Playback confirmed (play)\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\n\u2022 Finished in-app play sequence\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\nDone \u2014 Video playing | Netflix (id 12) | player=play | note=Playing via Netflix"
+  },
+  {
+    "command": "Play Don't Look Up on Netflix",
+    "title": "Don't Look Up",
+    "app": "netflix",
+    "search_text": "Dont Look Up",
+    "method": "deep-link-netflix",
+    "passed": true,
+    "elapsed_s": 18.4,
+    "verify": {
+      "playing": true,
+      "on_app": true,
+      "app_id": "12",
+      "app_name": "Netflix",
+      "player_state": "play",
+      "screen": "playing",
+      "summary": "Video playing | Netflix (id 12) | player=play | note=Playing via Netflix"
+    },
+    "steps_tail": "ocus not exposed\n  blind: search bar, menus, buttons, result list\n\u2022 OK \u2014 \"Don't Look Up\"\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\n\u2022 Playback confirmed (play)\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\n\u2022 Finished in-app play sequence\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\nDone \u2014 Video playing | Netflix (id 12) | player=play | note=Playing via Netflix"
+  },
+  {
+    "command": "Play The Dark Knight on Netflix",
+    "title": "The Dark Knight",
+    "app": "netflix",
+    "search_text": "The Dark Knight",
+    "method": "deep-link-netflix",
+    "passed": true,
+    "elapsed_s": 18.0,
+    "verify": {
+      "playing": true,
+      "on_app": true,
+      "app_id": "12",
+      "app_name": "Netflix",
+      "player_state": "play",
+      "screen": "playing",
+      "summary": "Video playing | Netflix (id 12) | player=play | note=Playing via Netflix"
+    },
+    "steps_tail": "us not exposed\n  blind: search bar, menus, buttons, result list\n\u2022 OK \u2014 \"The Dark Knight\"\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\n\u2022 Playback confirmed (play)\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\n\u2022 Finished in-app play sequence\n  Video playing | Netflix (id 12) | player=play | note=Playing via Netflix\n  focus: playback active\n  blind: menus, buttons\nDone \u2014 Video playing | Netflix (id 12) | player=play | note=Playing via Netflix"
+  },
+  {
+    "command": "Play Top Gun Maverick on Paramount Plus",
+    "title": "Top Gun: Maverick",
+    "app": "paramount",
+    "search_text": "Top Gun Maverick",
+    "method": "deep-link-paramount",
+    "passed": true,
+    "elapsed_s": 32.9,
+    "verify": {
+      "playing": true,
+      "on_app": true,
+      "app_id": "31440",
+      "app_name": "Paramount Plus",
+      "player_state": "play",
+      "screen": "playing",
+      "summary": "Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus"
+    },
+    "steps_tail": "t: Play key to start\n  Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus\n  focus: playback active\n  blind: menus, buttons\n\u2022 Playback confirmed (play)\n  Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus\n  focus: playback active\n  blind: menus, buttons\n\u2022 Finished in-app play sequence\n  Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus\n  focus: playback active\n  blind: menus, buttons\nDone \u2014 Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus"
+  },
+  {
+    "command": "Play Sonic the Hedgehog on Paramount Plus",
+    "title": "Sonic the Hedgehog",
+    "app": "paramount",
+    "search_text": "Sonic the Hedgehog",
+    "method": "deep-link-paramount",
+    "passed": true,
+    "elapsed_s": 27.1,
+    "verify": {
+      "playing": true,
+      "on_app": true,
+      "app_id": "31440",
+      "app_name": "Paramount Plus",
+      "player_state": "play",
+      "screen": "playing",
+      "summary": "Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus"
+    },
+    "steps_tail": "| player=close | note=Inferred: deep-linked into Paramount+ with a search term\n  focus: in-app focus not exposed\n  blind: search bar, menus, buttons, result list\n\u2022 Playback confirmed (play)\n  Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus\n  focus: playback active\n  blind: menus, buttons\n\u2022 Finished in-app play sequence\n  Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus\n  focus: playback active\n  blind: menus, buttons\nDone \u2014 Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus"
+  },
+  {
+    "command": "Play Transformers on Paramount Plus",
+    "title": "Transformers",
+    "app": "paramount",
+    "search_text": "Transformers",
+    "method": "deep-link-paramount",
+    "passed": true,
+    "elapsed_s": 26.9,
+    "verify": {
+      "playing": true,
+      "on_app": true,
+      "app_id": "31440",
+      "app_name": "Paramount Plus",
+      "player_state": "play",
+      "screen": "playing",
+      "summary": "Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus"
+    },
+    "steps_tail": "| player=close | note=Inferred: deep-linked into Paramount+ with a search term\n  focus: in-app focus not exposed\n  blind: search bar, menus, buttons, result list\n\u2022 Playback confirmed (play)\n  Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus\n  focus: playback active\n  blind: menus, buttons\n\u2022 Finished in-app play sequence\n  Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus\n  focus: playback active\n  blind: menus, buttons\nDone \u2014 Video playing | Paramount Plus (id 31440) | player=play | note=Playing via Paramount Plus"
+  }
+]
