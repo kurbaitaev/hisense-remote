@@ -24,8 +24,8 @@ On your **phone** (same Wi‑Fi as the TV):
 **https://kurbaitaev.github.io/hisense-remote/**
 
 - Allow **Local Network** if the browser asks  
-- Wait for auto-connect, or enter the TV IP from  
-  **Settings → Network → About**
+- Tap **Scan for TVs** — finds Roku addresses on your Wi‑Fi  
+- Or enter the IP from **Settings → Network → About**
 
 ### 3. Add to Home Screen (install)
 
