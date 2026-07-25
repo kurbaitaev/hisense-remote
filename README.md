@@ -17,15 +17,29 @@ On the TV:
 
 **Settings → System → Advanced system settings → Control by mobile apps → Enabled**
 
-### 2. Open the remote
-
-On your **phone** (same Wi‑Fi as the TV):
+### 2. Find the TV & open the remote
 
 **https://kurbaitaev.github.io/hisense-remote/**
 
-- Allow **Local Network** if the browser asks  
-- Tap **Scan for TVs** — finds Roku addresses on your Wi‑Fi  
-- Or enter the IP from **Settings → Network → About**
+#### No physical remote? (power button only)
+
+Phones often cannot scan Wi‑Fi for TVs (browser security). Use any **laptop/Mac on the same Wi‑Fi**:
+
+```bash
+cd ~/hisense-remote
+./scripts/find-tv-for-phone.sh
+```
+
+1. Power the TV on (button on the set)  
+2. Computer finds the Roku and shows a **QR code**  
+3. Scan the QR with your phone camera → remote opens **already connected**  
+
+(Or open `http://<computer-ip>:8080/find` on the computer.)
+
+#### If you have a remote (or already know the IP)
+
+- Tap **Scan for TVs** (works better on some Androids), or  
+- Type the last part of the IP from **Settings → Network → About**
 
 ### 3. Add to Home Screen (install)
 
