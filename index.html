@@ -333,6 +333,35 @@ button {
   line-height: 1.4;
 }
 .footer a { color: #6a6a80; }
+.hint { font-size: 0.75rem; color: var(--muted); line-height: 1.4; }
+.tv-list { display: flex; flex-direction: column; gap: 8px; margin: 10px 0 12px; }
+.tv-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  text-align: left;
+  padding: 12px 14px;
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+  font-weight: 500;
+  font-size: 0.9rem;
+}
+.tv-item:active { border-color: var(--accent); transform: scale(0.99); }
+.tv-item .dot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: var(--ok);
+  box-shadow: 0 0 8px rgba(74, 222, 128, 0.6);
+  flex-shrink: 0;
+}
+.tv-item .meta { flex: 1; min-width: 0; }
+.tv-item .name { font-weight: 600; display: block; }
+.tv-item .addr { font-size: 0.75rem; color: var(--muted); font-family: ui-monospace, monospace; }
+.tv-item .go { color: var(--accent); font-size: 0.8rem; font-weight: 700; }
 </style>
 </head>
 <body>
@@ -365,18 +394,18 @@ button {
       <ul class="steps">
         <li><span class="n">1</span><span>Phone on the <em>same Wi‑Fi</em> as your TV</span></li>
         <li><span class="n">2</span><span>TV: Settings → System → Advanced → <em>Control by mobile apps → Enabled</em></span></li>
-        <li><span class="n">3</span><span>Connect below, then <em>Add to Home Screen</em> to install</span></li>
+        <li><span class="n">3</span><span><em>Scan for TVs</em>, pick yours, then Add to Home Screen</span></li>
       </ul>
     </div>
 
     <div class="card">
-      <p id="scan-msg" class="scan"><span class="spin"></span>Looking for your Roku…</p>
-      <div class="row hidden" id="manual-row">
-        <input id="ip" inputmode="decimal" placeholder="TV IP · e.g. 192.168.0.154" autocomplete="off" enterkeyhint="go">
-        <button id="find" class="btn2" type="button">Find</button>
-      </div>
-      <div class="row hidden" style="margin-top:10px" id="connect-row">
-        <button id="go" class="btn" type="button" style="flex:1">Connect</button>
+      <p id="scan-msg" class="scan"><span class="spin"></span>Scanning Wi‑Fi for Roku TVs…</p>
+      <div id="tv-list" class="tv-list hidden"></div>
+      <button id="scan-btn" class="btn" type="button" style="width:100%;margin-top:4px">Scan for TVs</button>
+      <p class="hint" style="margin-top:12px;margin-bottom:8px">Or enter the TV IP manually</p>
+      <div class="row" id="manual-row">
+        <input id="ip" inputmode="decimal" placeholder="e.g. 192.168.0.154" autocomplete="off" enterkeyhint="go">
+        <button id="go" class="btn2" type="button">Connect</button>
       </div>
       <p id="err" class="err hidden"></p>
     </div>
@@ -436,7 +465,12 @@ button {
 <script>
 const KEY = "roku-remote-ip";
 const INSTALL_KEY = "roku-remote-install-hint";
-const PREFIXES = ["192.168.0", "192.168.1", "192.168.4", "10.0.0", "10.0.1"];
+const COMMON_PREFIXES = [
+  "192.168.0", "192.168.1", "192.168.2", "192.168.4", "192.168.8",
+  "192.168.10", "192.168.68", "192.168.86", "10.0.0", "10.0.1", "10.1.1",
+];
+const BATCH = 48;
+const PROBE_MS = 900;
 let tv = "";
 let scanning = false;
 const $ = (id) => document.getElementById(id);
@@ -454,38 +488,58 @@ function showErr(m) {
   $("err").textContent = m;
   $("err").classList.remove("hidden");
 }
+function clearErr() {
+  $("err").classList.add("hidden");
+  $("err").textContent = "";
+}
 function setScanMsg(m, spinning = false) {
   $("scan-msg").innerHTML = spinning
     ? `<span class="spin"></span>${m}`
     : m;
 }
-function showManual() {
-  $("manual-row").classList.remove("hidden");
-  $("connect-row").classList.remove("hidden");
-}
 
-function fetchOpts(timeoutMs = 2200) {
-  const opts = { signal: AbortSignal.timeout(timeoutMs) };
+function fetchOpts(timeoutMs = PROBE_MS) {
+  const opts = { method: "GET", mode: "cors", cache: "no-store" };
+  try {
+    opts.signal = AbortSignal.timeout(timeoutMs);
+  } catch {
+    const c = new AbortController();
+    setTimeout(() => c.abort(), timeoutMs);
+    opts.signal = c.signal;
+  }
+  // Chrome Private Network Access — helps HTTPS page reach LAN TVs
   if (https) opts.targetAddressSpace = "private";
   return opts;
 }
 
+/** Guess LAN /24 prefixes via WebRTC + common home routers. */
 function localSubnets() {
   return new Promise((resolve) => {
-    const found = new Set(PREFIXES);
+    const found = new Set(COMMON_PREFIXES);
+    const addIp = (ip) => {
+      if (!ip || ip.startsWith("127.") || ip.startsWith("169.254.")) return;
+      const parts = ip.split(".");
+      if (parts.length === 4) found.add(parts.slice(0, 3).join("."));
+    };
     try {
       const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-      pc.createDataChannel("");
+      pc.createDataChannel("scan");
       pc.onicecandidate = (e) => {
-        if (!e.candidate) return;
-        const m = /(\d+\.\d+\.\d+)\.\d+/.exec(e.candidate.candidate || "");
-        if (m) found.add(m[1]);
+        const c = e.candidate && (e.candidate.candidate || e.candidate.address || "");
+        if (!c) return;
+        // host / srflx candidates carry IPv4
+        const all = String(c).match(/\b(\d{1,3}\.){3}\d{1,3}\b/g) || [];
+        all.forEach(addIp);
+        if (e.candidate.address) addIp(e.candidate.address);
       };
-      pc.createOffer().then((o) => pc.setLocalDescription(o)).catch(() => {});
+      pc.createOffer()
+        .then((o) => pc.setLocalDescription(o))
+        .catch(() => {});
       setTimeout(() => {
         try { pc.close(); } catch {}
+        // Prefer phone's own subnet first
         resolve([...found]);
-      }, 1200);
+      }, 1800);
     } catch {
       resolve([...found]);
     }
@@ -521,53 +575,114 @@ function ecpPost(ip, path, ms = 5000) {
 
 async function probe(ip) {
   try {
-    const r = await fetch(`${base(ip)}/query/device-info`, fetchOpts(2200));
+    const r = await fetch(`${base(ip)}/query/device-info`, fetchOpts(PROBE_MS));
     if (!r.ok) return null;
     const x = await r.text();
-    if (!/device-info|friendly-device-name|model-name|Roku/i.test(x)) return null;
-    const name = (x.match(/<friendly-device-name>([^<]+)/) || x.match(/<model-name>([^<]+)/) || [])[1] || ip;
-    return { name, ip };
+    if (!/device-info|friendly-device-name|model-name|Roku|serial-number/i.test(x)) return null;
+    const name =
+      (x.match(/<friendly-device-name>([^<]+)/) ||
+        x.match(/<user-device-name>([^<]+)/) ||
+        x.match(/<model-name>([^<]+)/) ||
+        [])[1] || "Roku TV";
+    return { name: name.trim(), ip };
   } catch {
     return null;
   }
 }
 
-async function scan() {
-  if (scanning) return null;
-  scanning = true;
-  $("err").classList.add("hidden");
-  setScanMsg("Looking for your Roku…", true);
+function renderTvList(list) {
+  const box = $("tv-list");
+  box.innerHTML = "";
+  if (!list.length) {
+    box.classList.add("hidden");
+    return;
+  }
+  box.classList.remove("hidden");
+  list.forEach((item) => {
+    const btn = document.createElement("button");
+    btn.type = "button";
+    btn.className = "tv-item";
+    btn.innerHTML =
+      `<span class="dot"></span>` +
+      `<span class="meta"><span class="name"></span><span class="addr"></span></span>` +
+      `<span class="go">Connect</span>`;
+    btn.querySelector(".name").textContent = item.name;
+    btn.querySelector(".addr").textContent = item.ip;
+    btn.onclick = () => connect(item.ip, item.name);
+    box.appendChild(btn);
+  });
+}
 
+/** Scan full /24 subnets for Roku ECP (port 8060). Returns all TVs found. */
+async function scanNetwork() {
+  if (scanning) return [];
+  scanning = true;
+  $("scan-btn").disabled = true;
+  clearErr();
+  $("tv-list").classList.add("hidden");
+  $("tv-list").innerHTML = "";
+
+  const found = [];
+  const seen = new Set();
+  const add = (hit) => {
+    if (!hit || seen.has(hit.ip)) return;
+    seen.add(hit.ip);
+    found.push(hit);
+    renderTvList(found);
+    setScanMsg(`Found ${found.length} TV${found.length > 1 ? "s" : ""}… keep scanning`, true);
+  };
+
+  // 1) Saved TV first (fast path)
   const saved = localStorage.getItem(KEY);
   if (saved) {
-    setScanMsg("Checking saved TV…", true);
-    const hit = await probe(saved);
-    if (hit) {
-      scanning = false;
-      return hit;
-    }
+    setScanMsg(`Checking saved TV ${saved}…`, true);
+    add(await probe(saved));
   }
 
-  const prefixes = await localSubnets();
-  const ordered = [...new Set([
-    ...(saved ? [saved.split(".").slice(0, 3).join(".")] : []),
-    ...prefixes,
-  ])];
+  // 2) Discover which subnets we're on
+  setScanMsg("Detecting your Wi‑Fi network…", true);
+  let prefixes = await localSubnets();
+  if (saved) {
+    prefixes = [saved.split(".").slice(0, 3).join("."), ...prefixes];
+  }
+  prefixes = [...new Set(prefixes)];
 
-  for (const pre of ordered) {
-    setScanMsg(`Scanning ${pre}.x …`, true);
-    for (let b = 1; b < 255; b += 36) {
+  // 3) Parallel scan each /24
+  for (const pre of prefixes) {
+    setScanMsg(`Scanning ${pre}.1–254 for Roku…`, true);
+    for (let start = 1; start < 255; start += BATCH) {
       const jobs = [];
-      for (let i = b; i < b + 36 && i < 255; i++) jobs.push(probe(`${pre}.${i}`));
-      const hit = (await Promise.all(jobs)).find(Boolean);
-      if (hit) {
-        scanning = false;
-        return hit;
+      for (let i = start; i < start + BATCH && i < 255; i++) {
+        jobs.push(probe(`${pre}.${i}`).then(add));
       }
+      await Promise.all(jobs);
+      const pct = Math.min(100, Math.round((start / 254) * 100));
+      setScanMsg(
+        `Scanning ${pre}.x … ${pct}%` +
+          (found.length ? ` · ${found.length} found` : ""),
+        true,
+      );
     }
+    // If we already found TVs on the first real subnet, still scan others briefly
+    // but user can already connect from the list.
   }
+
   scanning = false;
-  return null;
+  $("scan-btn").disabled = false;
+
+  if (found.length === 1) {
+    setScanMsg(`Found: ${found[0].name} (${found[0].ip})`);
+  } else if (found.length > 1) {
+    setScanMsg(`Found ${found.length} TVs — tap one to connect`);
+  } else {
+    setScanMsg("No Roku found on this Wi‑Fi.");
+    showErr(
+      https
+        ? "Allow Local Network for this site if the browser asks, stay on the same Wi‑Fi as the TV, then Scan again. Or type the IP from Settings → Network → About."
+        : "Same Wi‑Fi as the TV? Enable Control by mobile apps, then Scan again. Or type the IP from Settings → Network → About.",
+    );
+  }
+  return found;
 }
 
 function maybeShowInstall() {
@@ -581,6 +696,7 @@ function maybeShowInstall() {
 async function connect(ip, name) {
   tv = ip;
   localStorage.setItem(KEY, ip);
+  $("ip").value = ip;
   $("status").textContent = `${name || "Roku"} · ${ip}`;
   $("status").classList.add("ok");
   $("setup").classList.add("hidden");
@@ -590,15 +706,19 @@ async function connect(ip, name) {
 }
 
 async function autoConnect() {
-  const hit = await scan();
-  if (hit) {
-    $("ip").value = hit.ip;
-    await connect(hit.ip, hit.name);
-    return;
+  // Prefer quick reconnect to last TV
+  const saved = localStorage.getItem(KEY);
+  if (saved) {
+    setScanMsg(`Reconnecting to ${saved}…`, true);
+    const hit = await probe(saved);
+    if (hit) {
+      await connect(hit.ip, hit.name);
+      return;
+    }
   }
-  setScanMsg("Couldn't find a Roku automatically.");
-  showErr("Same Wi‑Fi as the TV? Allow Local Network if the browser asks. Or enter the IP from Settings → Network → About.");
-  showManual();
+  const list = await scanNetwork();
+  // Auto-connect only if exactly one TV
+  if (list.length === 1) await connect(list[0].ip, list[0].name);
 }
 
 function pressFx(el) {
@@ -635,6 +755,7 @@ document.querySelectorAll("[data-app]").forEach((b) => {
 $("go").onclick = async () => {
   const ip = $("ip").value.trim();
   if (!ip) return;
+  clearErr();
   setScanMsg("Connecting…", true);
   const hit = await probe(ip);
   if (!hit) {
@@ -644,11 +765,12 @@ $("go").onclick = async () => {
       return;
     }
     showErr(`No Roku at ${ip}. Check Wi‑Fi and Control by mobile apps.`);
+    setScanMsg("Could not verify that IP.");
     return;
   }
   await connect(hit.ip, hit.name);
 };
-$("find").onclick = () => autoConnect();
+$("scan-btn").onclick = () => scanNetwork();
 
 async function doPlay() {
   const t = $("play").value.trim();
@@ -673,12 +795,11 @@ $("change").onclick = () => {
   tv = "";
   $("remote").classList.add("hidden");
   $("setup").classList.remove("hidden");
-  $("manual-row").classList.add("hidden");
-  $("connect-row").classList.add("hidden");
-  $("err").classList.add("hidden");
+  clearErr();
+  $("tv-list").classList.add("hidden");
   $("status").textContent = "Install on your phone · no App Store · no mic";
   $("status").classList.remove("ok");
-  autoConnect();
+  setScanMsg("Tap Scan for TVs to search again.");
 };
 
 function dismissInstall() {
