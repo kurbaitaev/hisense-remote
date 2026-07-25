@@ -1,131 +1,84 @@
 # TV Remote — free Roku remote on your phone
 
-**Open it:** [https://kurbaitaev.github.io/hisense-remote/](https://kurbaitaev.github.io/hisense-remote/)
+Control your **Roku / Hisense Roku** TV without paying for an App Store remote.  
+**No mic required.** Voice is optional (advanced).
 
-A free remote for **Roku / Hisense Roku** TVs.  
-Use it in the browser, then **Add to Home Screen** so it feels like an app — without paying for one in the App Store.
-
-No account. No subscription. Your phone talks to **your** TV on **your** Wi‑Fi.
+Official apps find TVs with **Local Network + SSDP**. Safari websites cannot do that.  
+This project includes a free **iPhone app** (install from your Mac with Xcode) that does.
 
 ---
 
-## Install on your phone (main path — no mic)
+## First time (phone only, no physical remote)
 
-### 1. TV setup (once)
+### Install the iPhone app (once)
 
-On the TV:
-
-**Settings → System → Advanced system settings → Control by mobile apps → Enabled**
-
-### 2. Find the TV & open the remote
-
-**https://kurbaitaev.github.io/hisense-remote/**
-
-#### No physical remote? (power button only)
-
-Phones often cannot scan Wi‑Fi for TVs (browser security). Use any **laptop/Mac on the same Wi‑Fi**:
+On your **Mac**:
 
 ```bash
 cd ~/hisense-remote
-./scripts/find-tv-for-phone.sh
+./scripts/run-ios-app.sh
 ```
 
-1. Power the TV on (button on the set)  
-2. Computer finds the Roku and shows a **QR code**  
-3. Scan the QR with your phone camera → remote opens **already connected**  
+In **Xcode**:
 
-(Or open `http://<computer-ip>:8080/find` on the computer.)
+1. Plug in your iPhone  
+2. Select your iPhone as the run target  
+3. **Signing** → choose your Apple ID (free account is fine)  
+4. Press **Run ▶**  
+5. On the phone: trust the developer if asked  
 
-#### If you have a remote (or already know the IP)
+### Use it
 
-- Tap **Scan for TVs** (works better on some Androids), or  
-- Type the last part of the IP from **Settings → Network → About**
+1. Open **TV Remote** on the iPhone  
+2. When iOS asks **Local Network** → tap **Allow**  
+3. Power the TV **on** (button on the set)  
+4. Tap **Find my TV**  
 
-### 3. Add to Home Screen (install)
+The app finds Rokus the same way official remotes do (**SSDP** + Wi‑Fi scan).  
+No TV Settings menu. No typing an IP. No second computer after install.
 
-This makes it open full-screen like a normal app.
-
-**iPhone (Safari)**  
-1. Tap the **Share** button  
-2. Tap **Add to Home Screen**  
-3. Tap **Add**  
-4. Open **TV Remote** from your home screen  
-
-**Android (Chrome)**  
-1. Tap the menu **⋮**  
-2. Tap **Add to Home screen** / **Install app**  
-3. Confirm  
-4. Open **TV Remote** from your home screen  
-
-You do **not** need the App Store. You do **not** need a microphone.
-
-### What you can do
-
-| | |
-|--|--|
-| D-pad, OK, Home, Back | ✅ |
-| Volume / mute / power | ✅ |
-| Play / pause / skip | ✅ |
-| Open Netflix, YouTube, Prime, etc. | ✅ |
-| Type a title → search on the TV | ✅ |
-| Microphone / voice | Optional (advanced) |
+More detail: [mobile/README.md](./mobile/README.md)
 
 ---
 
-## Share with anyone
+## Website version (optional)
 
-Send this link. Each person installs it for **their** TV:
+**https://kurbaitaev.github.io/hisense-remote/**
 
-```
-https://kurbaitaev.github.io/hisense-remote/
-```
+Good for buttons after you already know the TV IP.  
+**Auto-find is limited** in Safari — use the **iPhone app** above for discovery.
 
 ---
 
-## Optional: voice features (advanced)
+## What you get
 
-Buttons and “Play …” by typing work with the web remote alone.
+| | Website (Safari) | iPhone app |
+|--|------------------|------------|
+| D-pad, volume, apps, play title | ✅ | ✅ |
+| Find TV without typing IP | ❌ often blocked | ✅ SSDP |
+| No physical remote needed | ❌ hard | ✅ |
+| App Store price | Free | Free (personal install) |
 
-**Voice / microphone** is extra and only if you run the home server on a Mac/Pi on your network:
+---
+
+## Optional: voice on a home server
+
+Only if you want mic commands on *your* network:
 
 ```bash
-git clone https://github.com/kurbaitaev/hisense-remote.git
-cd hisense-remote
-python3 -m venv .venv && source .venv/bin/activate
-pip install -r requirements.txt
-cp config.example.json config.json   # set "host" to your TV IP
-cp .env.example .env                 # optional GROQ_API_KEY for mic
 ./start.sh
+# phone: https://<mac-ip>:8443
 ```
-
-Then open `https://<your-computer-ip>:8443` on your phone (HTTPS required for mic).
 
 Most people never need this.
 
 ---
 
-## For developers
+## TV setting (once, when you have a remote)
 
-| Path | Purpose |
-|------|---------|
-| **`web/`** | Public remote (what people install on their phone) |
-| **`server/`** | Optional voice bridge on your LAN |
-| **[SHARE.md](./SHARE.md)** | Host your own copy of the static remote |
+**Settings → System → Advanced → Control by mobile apps → Enabled**
 
-Update the public site after editing `web/`:
-
-```bash
-git subtree split --prefix web -b gh-pages
-git push origin gh-pages --force
-```
-
----
-
-## Privacy
-
-- TV IP is saved in **your browser** only  
-- Commands go **phone → TV** (no central control server)  
-- GitHub Pages only hosts the HTML/JS  
+Some TVs ship with this on. If keys fail after find, enable it when you can.
 
 ---
 
