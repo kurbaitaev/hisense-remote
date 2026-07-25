@@ -9,6 +9,7 @@
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a0f">
 <meta name="description" content="Free Roku remote on your phone. Add to Home Screen — no App Store, no mic required.">
+<meta http-equiv="Permissions-Policy" content="local-network-access=*">
 <title>TV Remote — Install free Roku remote</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2300b4d8'/%3E%3Crect x='12' y='18' width='40' height='28' rx='4' fill='none' stroke='%23041018' stroke-width='3'/%3E%3Cpath d='M22 52h20' stroke='%23041018' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -362,6 +363,16 @@ button {
 .tv-item .name { font-weight: 600; display: block; }
 .tv-item .addr { font-size: 0.75rem; color: var(--muted); font-family: ui-monospace, monospace; }
 .tv-item .go { color: var(--accent); font-size: 0.8rem; font-weight: 700; }
+.net-prefix {
+  font-family: ui-monospace, monospace;
+  font-size: 0.85rem;
+  color: var(--muted);
+  white-space: nowrap;
+  padding: 12px 0;
+}
+#octet-row { align-items: center; }
+details summary { list-style: none; }
+details summary::-webkit-details-marker { display: none; }
 </style>
 </head>
 <body>
@@ -402,11 +413,22 @@ button {
       <p id="scan-msg" class="scan"><span class="spin"></span>Scanning Wi‑Fi for Roku TVs…</p>
       <div id="tv-list" class="tv-list hidden"></div>
       <button id="scan-btn" class="btn" type="button" style="width:100%;margin-top:4px">Scan for TVs</button>
-      <p class="hint" style="margin-top:12px;margin-bottom:8px">Or enter the TV IP manually</p>
-      <div class="row" id="manual-row">
-        <input id="ip" inputmode="decimal" placeholder="e.g. 192.168.0.154" autocomplete="off" enterkeyhint="go">
-        <button id="go" class="btn2" type="button">Connect</button>
+      <p class="hint" style="margin-top:12px;margin-bottom:8px">
+        If the browser asks for <strong style="color:var(--text)">Local Network</strong> access — allow it. That’s required to find TVs.
+      </p>
+      <p class="hint" style="margin-bottom:8px">Or type the last part of the TV IP (from Settings → Network → About):</p>
+      <div class="row" id="octet-row">
+        <span id="net-prefix" class="net-prefix">192.168.0.</span>
+        <input id="octet" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="154" autocomplete="off" enterkeyhint="go" style="max-width:88px;text-align:center">
+        <button id="go-octet" class="btn2" type="button">Connect</button>
       </div>
+      <details style="margin-top:12px">
+        <summary class="hint" style="cursor:pointer">Full IP address</summary>
+        <div class="row" style="margin-top:8px" id="manual-row">
+          <input id="ip" inputmode="decimal" placeholder="e.g. 192.168.0.154" autocomplete="off" enterkeyhint="go">
+          <button id="go" class="btn2" type="button">Connect</button>
+        </div>
+      </details>
       <p id="err" class="err hidden"></p>
     </div>
   </div>
@@ -469,10 +491,12 @@ const COMMON_PREFIXES = [
   "192.168.0", "192.168.1", "192.168.2", "192.168.4", "192.168.8",
   "192.168.10", "192.168.68", "192.168.86", "10.0.0", "10.0.1", "10.1.1",
 ];
-const BATCH = 48;
-const PROBE_MS = 900;
+const BATCH = 40;
+const PROBE_MS = 700;
 let tv = "";
 let scanning = false;
+let detectedPrefix = "192.168.0";
+let lanBlocked = false;
 const $ = (id) => document.getElementById(id);
 const base = (ip) => `http://${ip}:8060`;
 const https = location.protocol === "https:";
@@ -497,38 +521,82 @@ function setScanMsg(m, spinning = false) {
     ? `<span class="spin"></span>${m}`
     : m;
 }
+function setPrefixLabel(prefix) {
+  detectedPrefix = prefix;
+  const el = $("net-prefix");
+  if (el) el.textContent = prefix + ".";
+}
 
-function fetchOpts(timeoutMs = PROBE_MS) {
-  const opts = { method: "GET", mode: "cors", cache: "no-store" };
+function abortSignal(ms) {
   try {
-    opts.signal = AbortSignal.timeout(timeoutMs);
+    return AbortSignal.timeout(ms);
   } catch {
     const c = new AbortController();
-    setTimeout(() => c.abort(), timeoutMs);
-    opts.signal = c.signal;
+    setTimeout(() => c.abort(), ms);
+    return c.signal;
   }
-  // Chrome Private Network Access — helps HTTPS page reach LAN TVs
-  if (https) opts.targetAddressSpace = "private";
-  return opts;
+}
+
+/**
+ * Root cause of old scan failing on phones:
+ * 1) Roku never sends CORS headers → mode:"cors" cannot read device-info.
+ * 2) Old code used targetAddressSpace:"private" (deprecated PNA).
+ *    Chrome Local Network Access needs "local" + user permission.
+ * 3) Use mode:"no-cors" to detect open port 8060 (opaque = something answered).
+ */
+function lanFetch(url, timeoutMs = PROBE_MS) {
+  const opts = {
+    method: "GET",
+    mode: "no-cors",
+    cache: "no-store",
+    signal: abortSignal(timeoutMs),
+  };
+  // Secure pages → private IP: mark as local network (Chrome LNA / mixed-content exemption)
+  if (https) opts.targetAddressSpace = "local";
+  return fetch(url, opts);
+}
+
+/** Ask browser for Local Network permission (Chrome 142+). */
+async function requestLocalNetworkAccess() {
+  // Trigger permission with a private IP literal on the phone's likely subnet
+  const probeIp = `${detectedPrefix}.1`;
+  try {
+    await lanFetch(`http://${probeIp}/`, 1500);
+  } catch {
+    /* expected — router may not answer; permission may still be granted */
+  }
+  try {
+    if (navigator.permissions && navigator.permissions.query) {
+      const st = await navigator.permissions.query({ name: "local-network-access" });
+      return st.state === "granted";
+    }
+  } catch {
+    /* name not supported */
+  }
+  return null;
 }
 
 /** Guess LAN /24 prefixes via WebRTC + common home routers. */
 function localSubnets() {
   return new Promise((resolve) => {
-    const found = new Set(COMMON_PREFIXES);
+    const found = [];
+    const seen = new Set();
     const addIp = (ip) => {
       if (!ip || ip.startsWith("127.") || ip.startsWith("169.254.")) return;
       const parts = ip.split(".");
-      if (parts.length === 4) found.add(parts.slice(0, 3).join("."));
+      if (parts.length !== 4) return;
+      const pre = parts.slice(0, 3).join(".");
+      if (seen.has(pre)) return;
+      seen.add(pre);
+      found.push(pre);
     };
     try {
       const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
       pc.createDataChannel("scan");
       pc.onicecandidate = (e) => {
-        const c = e.candidate && (e.candidate.candidate || e.candidate.address || "");
-        if (!c) return;
-        // host / srflx candidates carry IPv4
-        const all = String(c).match(/\b(\d{1,3}\.){3}\d{1,3}\b/g) || [];
+        if (!e.candidate) return;
+        const raw = e.candidate.candidate || "";
+        const all = String(raw).match(/\b(\d{1,3}\.){3}\d{1,3}\b/g) || [];
         all.forEach(addIp);
         if (e.candidate.address) addIp(e.candidate.address);
       };
@@ -537,11 +605,17 @@ function localSubnets() {
         .catch(() => {});
       setTimeout(() => {
         try { pc.close(); } catch {}
-        // Prefer phone's own subnet first
-        resolve([...found]);
-      }, 1800);
+        // Phone subnet first, then common home ranges
+        const ordered = [...found];
+        COMMON_PREFIXES.forEach((p) => {
+          if (!seen.has(p)) ordered.push(p);
+        });
+        if (ordered[0]) setPrefixLabel(ordered[0]);
+        resolve(ordered);
+      }, 2000);
     } catch {
-      resolve([...found]);
+      if (COMMON_PREFIXES[0]) setPrefixLabel(COMMON_PREFIXES[0]);
+      resolve([...COMMON_PREFIXES]);
     }
   });
 }
@@ -573,19 +647,41 @@ function ecpPost(ip, path, ms = 5000) {
   });
 }
 
+/**
+ * Detect a Roku-like device at IP.
+ * Roku has no CORS headers — we only need to know port 8060 answers (no-cors).
+ */
 async function probe(ip) {
   try {
-    const r = await fetch(`${base(ip)}/query/device-info`, fetchOpts(PROBE_MS));
-    if (!r.ok) return null;
-    const x = await r.text();
-    if (!/device-info|friendly-device-name|model-name|Roku|serial-number/i.test(x)) return null;
-    const name =
-      (x.match(/<friendly-device-name>([^<]+)/) ||
-        x.match(/<user-device-name>([^<]+)/) ||
-        x.match(/<model-name>([^<]+)/) ||
-        [])[1] || "Roku TV";
-    return { name: name.trim(), ip };
-  } catch {
+    // no-cors: resolves if TCP/HTTP answers; throws on timeout / blocked / refused
+    await lanFetch(`${base(ip)}/query/device-info`, PROBE_MS);
+    // Optional: try readable CORS (almost always fails on Roku — ignore)
+    let name = "Roku TV";
+    try {
+      const r = await fetch(`${base(ip)}/query/device-info`, {
+        mode: "cors",
+        cache: "no-store",
+        signal: abortSignal(400),
+        ...(https ? { targetAddressSpace: "local" } : {}),
+      });
+      if (r.ok) {
+        const x = await r.text();
+        name =
+          (x.match(/<friendly-device-name>([^<]+)/) ||
+            x.match(/<user-device-name>([^<]+)/) ||
+            x.match(/<model-name>([^<]+)/) ||
+            [])[1] || name;
+      }
+    } catch {
+      /* no CORS — fine */
+    }
+    return { name: String(name).trim(), ip };
+  } catch (err) {
+    // If the browser blocks all LAN access, mark it once for better error text
+    const msg = String(err && err.message || err || "");
+    if (/Failed to fetch|NetworkError|Load failed|blocked|Local Network/i.test(msg)) {
+      lanBlocked = true;
+    }
     return null;
   }
 }
@@ -613,10 +709,11 @@ function renderTvList(list) {
   });
 }
 
-/** Scan full /24 subnets for Roku ECP (port 8060). Returns all TVs found. */
+/** Scan /24 subnets for anything answering on Roku ECP port 8060. */
 async function scanNetwork() {
   if (scanning) return [];
   scanning = true;
+  lanBlocked = false;
   $("scan-btn").disabled = true;
   clearErr();
   $("tv-list").classList.add("hidden");
@@ -629,42 +726,46 @@ async function scanNetwork() {
     seen.add(hit.ip);
     found.push(hit);
     renderTvList(found);
-    setScanMsg(`Found ${found.length} TV${found.length > 1 ? "s" : ""}… keep scanning`, true);
+    setScanMsg(`Found ${found.length} TV${found.length > 1 ? "s" : ""}…`, true);
   };
 
-  // 1) Saved TV first (fast path)
+  setScanMsg("Detecting your Wi‑Fi…", true);
+  let prefixes = await localSubnets();
+
   const saved = localStorage.getItem(KEY);
   if (saved) {
+    prefixes = [saved.split(".").slice(0, 3).join("."), ...prefixes];
     setScanMsg(`Checking saved TV ${saved}…`, true);
     add(await probe(saved));
   }
-
-  // 2) Discover which subnets we're on
-  setScanMsg("Detecting your Wi‑Fi network…", true);
-  let prefixes = await localSubnets();
-  if (saved) {
-    prefixes = [saved.split(".").slice(0, 3).join("."), ...prefixes];
-  }
   prefixes = [...new Set(prefixes)];
+  if (prefixes[0]) setPrefixLabel(prefixes[0]);
 
-  // 3) Parallel scan each /24
+  setScanMsg("Allow Local Network if asked…", true);
+  await requestLocalNetworkAccess();
+
+  // Prefer the phone's own subnet first (first WebRTC prefix)
   for (const pre of prefixes) {
-    setScanMsg(`Scanning ${pre}.1–254 for Roku…`, true);
+    setPrefixLabel(pre);
+    setScanMsg(`Scanning ${pre}.1–254…`, true);
     for (let start = 1; start < 255; start += BATCH) {
       const jobs = [];
       for (let i = start; i < start + BATCH && i < 255; i++) {
         jobs.push(probe(`${pre}.${i}`).then(add));
       }
       await Promise.all(jobs);
-      const pct = Math.min(100, Math.round((start / 254) * 100));
+      if (found.length) {
+        // Keep scanning current subnet so we list every TV, then stop other subnets
+      }
+      const pct = Math.min(100, Math.round(((start + BATCH) / 254) * 100));
       setScanMsg(
         `Scanning ${pre}.x … ${pct}%` +
           (found.length ? ` · ${found.length} found` : ""),
         true,
       );
     }
-    // If we already found TVs on the first real subnet, still scan others briefly
-    // but user can already connect from the list.
+    // If we found TVs on this subnet, skip remaining common prefixes (faster)
+    if (found.length) break;
   }
 
   scanning = false;
@@ -675,12 +776,19 @@ async function scanNetwork() {
   } else if (found.length > 1) {
     setScanMsg(`Found ${found.length} TVs — tap one to connect`);
   } else {
-    setScanMsg("No Roku found on this Wi‑Fi.");
-    showErr(
-      https
-        ? "Allow Local Network for this site if the browser asks, stay on the same Wi‑Fi as the TV, then Scan again. Or type the IP from Settings → Network → About."
-        : "Same Wi‑Fi as the TV? Enable Control by mobile apps, then Scan again. Or type the IP from Settings → Network → About.",
-    );
+    setScanMsg("No Roku found automatically.");
+    const tip =
+      `On the TV: Settings → Network → About → note the IP (ends with a number). ` +
+      `Type that last number above (network ${detectedPrefix}.___).`;
+    if (lanBlocked || https) {
+      showErr(
+        "This site needs Local Network access to scan. " +
+          "On iPhone: Settings → Safari (or the app) → Local Network → allow for this site, then Scan again. " +
+          tip,
+      );
+    } else {
+      showErr("Same Wi‑Fi as the TV? Enable Control by mobile apps. " + tip);
+    }
   }
   return found;
 }
@@ -752,24 +860,38 @@ document.querySelectorAll("[data-app]").forEach((b) => {
   };
 });
 
-$("go").onclick = async () => {
-  const ip = $("ip").value.trim();
-  if (!ip) return;
+async function connectRaw(ip) {
   clearErr();
   setScanMsg("Connecting…", true);
   const hit = await probe(ip);
-  if (!hit) {
-    // On HTTPS, probe may fail even if keys work — still allow connect
-    if (https) {
-      await connect(ip, ip);
-      return;
-    }
-    showErr(`No Roku at ${ip}. Check Wi‑Fi and Control by mobile apps.`);
-    setScanMsg("Could not verify that IP.");
+  if (hit) {
+    await connect(hit.ip, hit.name);
     return;
   }
-  await connect(hit.ip, hit.name);
+  // Keys still work via form-POST even when probe is blocked — allow manual connect
+  if (https || lanBlocked) {
+    await connect(ip, "Roku TV");
+    return;
+  }
+  showErr(`No Roku at ${ip}. Check Wi‑Fi and Control by mobile apps.`);
+  setScanMsg("Could not verify that IP.");
+}
+
+$("go").onclick = () => {
+  const ip = $("ip").value.trim();
+  if (ip) connectRaw(ip);
 };
+$("go-octet").onclick = () => {
+  const n = parseInt($("octet").value.trim(), 10);
+  if (!n || n < 1 || n > 254) {
+    showErr("Enter the last number of the TV IP (1–254).");
+    return;
+  }
+  connectRaw(`${detectedPrefix}.${n}`);
+};
+$("octet").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") $("go-octet").click();
+});
 $("scan-btn").onclick = () => scanNetwork();
 
 async function doPlay() {
