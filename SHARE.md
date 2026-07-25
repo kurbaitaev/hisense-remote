@@ -14,10 +14,10 @@ Friend's phone ──same Wi‑Fi──► Friend's Roku :8060
 
 ## What to send friends
 
-One link. Example after you deploy:
+One link (this project’s public remote):
 
 ```
-https://your-name.pages.dev
+https://kurbaitaev.github.io/hisense-remote/
 ```
 
 **Friend does:**
@@ -52,12 +52,20 @@ Or: Cloudflare Dashboard → Workers & Pages → Create → Pages → Connect Gi
 
 You get something like `https://roku-remote.pages.dev` — text that to friends.
 
-### Option B — GitHub Pages
+### Option B — GitHub Pages (this repo)
 
-1. Push this repo to GitHub  
-2. Settings → Pages → Deploy from branch  
-3. Folder: `/web` (or root if you only publish `web/`)  
-4. Share `https://<you>.github.io/<repo>/`
+Already live after push:
+
+```
+https://kurbaitaev.github.io/hisense-remote/
+```
+
+To refresh after editing `web/`:
+
+```bash
+git subtree split --prefix web -b gh-pages
+git push origin gh-pages --force
+```
 
 ### Option C — no deploy, AirDrop the file
 
