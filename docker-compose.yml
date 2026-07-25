@@ -1,0 +1,18 @@
+# Always-on home bridge — must share the LAN with your Roku TV.
+# Use network_mode: host so ECP (port 8060) and mDNS discovery work.
+#
+# Pi setup: ./scripts/setup-pi.sh
+
+services:
+  hisense-remote:
+    build: .
+    container_name: hisense-remote
+    restart: unless-stopped
+    network_mode: host
+    environment:
+      - DATA_DIR=/data
+      - PUBLIC_HOST=${PUBLIC_HOST:-}
+      - HTTP_PORT=8080
+      - HTTPS_PORT=8443
+    volumes:
+      - ${DATA_DIR:-/var/lib/hisense-remote}:/data

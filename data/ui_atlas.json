@@ -1,5 +1,5 @@
 {
-  "tv": "Hisense Roku 192.168.0.154",
+  "tv": "Hisense Roku (example)",
   "ecp_mode": "limited",
   "ecp_transport": "ECP-2 WebSocket bypasses many HTTP 403s",
   "signals": {

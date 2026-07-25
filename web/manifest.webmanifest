@@ -1,0 +1,10 @@
+{
+  "name": "Roku Remote",
+  "short_name": "Roku Remote",
+  "description": "Control your Roku TV from your phone — your TV, your Wi‑Fi",
+  "start_url": "/",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f"
+}

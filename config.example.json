@@ -1,14 +1,10 @@
 {
-  "host": "192.168.0.154",
+  "host": "192.168.1.100",
   "platform": "roku",
   "use_ssl": null,
-  "home_channel_id": "562859",
-  "installed_apps": [
-    "netflix",
-    "paramount"
-  ],
-  "developer": {
-    "username": "rokudev",
-    "installer_url": "http://192.168.0.154"
+  "home_channel_id": null,
+  "installed_apps": ["netflix", "prime", "paramount", "youtube", "disney", "hulu"],
+  "paramount": {
+    "profile_down_presses": 0
   }
 }

@@ -10,7 +10,7 @@ from contextlib import asynccontextmanager
 from pathlib import Path
 from typing import Any
 
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, Form, HTTPException, UploadFile
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
@@ -18,13 +18,15 @@ from pydantic import BaseModel, Field
 import server.env  # noqa: F401 — load .env first
 
 from server.discovery import discover_tvs
+from server.discovery import _get_local_ips
 from server.roku_client import RokuTvClient, probe_roku
-from server.brave_search import brave_available
 from server.llm import llm_provider
 from server.roku_ecp2 import RokuEcp2Error, close_roku_session, get_roku_session
 from server.tv_client import VidaaTvClient, probe_vidaa
 from server.transcribe import transcribe_audio, transcribe_available
 from server.setup_check import check_roku_setup
+
+from server.vision_agent import analyze_tv_photo, vision_act, vision_available
 from server.voice_agent import handle_voice_command
 
 ROOT = Path(__file__).resolve().parent.parent
@@ -69,7 +71,7 @@ async def lifespan(app: FastAPI):
             pass
 
 
-app = FastAPI(title="Hisense Remote", lifespan=lifespan)
+app = FastAPI(title="Roku Voice Remote", lifespan=lifespan)
 app.mount("/static", StaticFiles(directory=STATIC_DIR), name="static")
 
 
@@ -104,9 +106,43 @@ class VoiceRequest(BaseModel):
     text: str = Field(min_length=1, max_length=300)
 
 
+class VisionGoalRequest(BaseModel):
+    goal: str = Field(default="Describe the TV screen.", max_length=400)
+
+
+class AgentRequest(BaseModel):
+    goal: str = Field(min_length=1, max_length=400)
+
+
 class UiPressRequest(BaseModel):
     key: str = Field(min_length=1, max_length=40)
     intent: str = ""
+
+
+@app.get("/direct")
+async def direct_remote():
+    """Phone → TV directly (no server proxy). Use HTTP to avoid mixed-content blocks."""
+    return FileResponse(STATIC_DIR / "direct.html")
+
+
+@app.get("/share")
+async def share_page():
+    """How to share the friend remote (their TV, not yours)."""
+    return FileResponse(STATIC_DIR / "share.html")
+
+
+@app.get("/api/share")
+async def share_info():
+    """Info for share tooling — friend mode is phone → their Roku."""
+    return {
+        "ok": True,
+        "mode": "friend",
+        "description": "Each friend controls their own TV. Deploy web/ publicly.",
+        "friend_app": "/static/friend-remote.html",
+        "deploy_path": "web/",
+        "docs": "SHARE.md",
+        "deploy_command": "npx wrangler pages deploy web --project-name=roku-remote",
+    }
 
 
 @app.get("/")
@@ -114,13 +150,43 @@ async def index():
     return FileResponse(STATIC_DIR / "index.html")
 
 
+@app.get("/manifest.webmanifest")
+async def web_manifest():
+    return FileResponse(
+        STATIC_DIR / "manifest.webmanifest",
+        media_type="application/manifest+json",
+    )
+
+
+@app.get("/sw.js")
+async def service_worker():
+    return FileResponse(
+        STATIC_DIR / "sw.js",
+        media_type="application/javascript",
+        headers={"Service-Worker-Allowed": "/"},
+    )
+
+
 @app.get("/api/config")
 async def get_config():
+    host = config.get("host")
+    platform = config.get("platform")
+    tv_reachable: bool | None = None
+    if host and platform == "roku":
+        try:
+            tv_reachable = await probe_roku(host, timeout=2.0)
+        except Exception:
+            tv_reachable = False
+
+    local_ips = _get_local_ips()
     return {
-        "host": config.get("host"),
-        "platform": config.get("platform"),
+        "host": host,
+        "platform": platform,
         "use_ssl": config.get("use_ssl", True),
-        "connected": vidaa_client is not None or bool(config.get("host")),
+        "connected": tv_reachable is True or vidaa_client is not None,
+        "tv_reachable": tv_reachable,
+        "local_ips": local_ips,
+        "lan_ok": bool(local_ips),
     }
 
 
@@ -335,31 +401,173 @@ async def tv_setup_status():
     return await check_roku_setup(host)
 
 
-@app.get("/api/voice/status")
-async def voice_status():
-    local_ip = _get_local_ip()
+@app.get("/api/agent/status")
+async def agent_status():
+    from server.llm import llm_available, llm_provider
+
     return {
         "enabled": True,
-        "agent": llm_provider() or "rules",
+        "brain": llm_provider() or "rules",
+        "llm": llm_available(),
+        "mode": "play",
+        "search_behavior": "Roku /search/browse API → deep-link app → play (no keyboard typing)",
+        "fast_commands": ["open_app", "send_key", "send_keys", "type_text", "go_home"],
+        "hint": "Play/watch uses TMDB + Roku search API — not blind key mashing.",
+    }
+
+
+@app.post("/api/agent/run")
+async def agent_run(req: AgentRequest):
+    """Legacy route — same search-only handler as /api/voice."""
+    host = config.get("host")
+    platform = config.get("platform")
+    if not host or platform != "roku":
+        raise HTTPException(400, "Roku TV not connected.")
+
+    try:
+        session = await get_roku_session(host)
+        result = await handle_voice_command(session, req.goal.strip())
+        return {"ok": True, **result}
+    except RokuEcp2Error as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+
+@app.get("/api/vision/status")
+async def vision_status():
+    return {
+        "experimental": True,
+        "advertised": False,
+        "enabled": vision_available(),
+        "model": os.getenv("GEMINI_VISION_MODEL", "gemini-2.5-flash"),
+        "mode": "phone_camera",
+        "note": "Experimental API — not part of the default voice search flow.",
+        "hint": "Requires GEMINI_API_KEY. Point a phone camera at the TV for screen analysis.",
+    }
+
+
+@app.post("/api/vision/see")
+async def vision_see(
+    image: UploadFile = File(...),
+    goal: str = Form(default="Describe the TV screen."),
+):
+    """Analyze a phone photo of the TV without pressing any keys."""
+    host = config.get("host")
+    platform = config.get("platform")
+    if not host or platform != "roku":
+        raise HTTPException(400, "Roku TV not connected.")
+    if not vision_available():
+        raise HTTPException(400, "GEMINI_API_KEY required for vision.")
+
+    data = await image.read()
+    mime = image.content_type or "image/jpeg"
+
+    ecp_context: dict[str, Any] | None = None
+    try:
+        from server.tv_ui_reader import read_ui
+
+        session = await get_roku_session(host)
+        ui = await read_ui(session, include_device=False)
+        ecp_context = {
+            "app_name": ui.app_name,
+            "app_id": ui.app_id,
+            "screen": ui.screen.value,
+            "summary": ui.summary(),
+            "player_state": ui.player.state if ui.player else "none",
+        }
+    except Exception:
+        pass
+
+    try:
+        analysis = await analyze_tv_photo(
+            data,
+            goal=goal,
+            ecp_context=ecp_context,
+            mime_type=mime,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+    return {"ok": True, **analysis}
+
+
+@app.post("/api/vision/act")
+async def vision_act_once(
+    image: UploadFile = File(...),
+    goal: str = Form(default="Help control the TV toward the user's goal."),
+):
+    """See the TV via camera photo and press one remote key if confident."""
+    host = config.get("host")
+    platform = config.get("platform")
+    if not host or platform != "roku":
+        raise HTTPException(400, "Roku TV not connected.")
+    if not vision_available():
+        raise HTTPException(400, "GEMINI_API_KEY required for vision.")
+
+    data = await image.read()
+    mime = image.content_type or "image/jpeg"
+
+    try:
+        session = await get_roku_session(host)
+        from server.tv_ui_reader import read_ui
+
+        ui = await read_ui(session, include_device=False)
+        ecp_context = {
+            "app_name": ui.app_name,
+            "app_id": ui.app_id,
+            "screen": ui.screen.value,
+            "summary": ui.summary(),
+            "player_state": ui.player.state if ui.player else "none",
+        }
+        result = await vision_act(
+            session,
+            data,
+            goal=goal,
+            ecp_context=ecp_context,
+            mime_type=mime,
+        )
+    except RuntimeError as exc:
+        raise HTTPException(502, str(exc)) from exc
+    except RokuEcp2Error as exc:
+        raise HTTPException(502, str(exc)) from exc
+
+    return {"ok": True, **result}
+
+
+@app.post("/api/vision/goal")
+async def vision_goal_command(req: VisionGoalRequest):
+    """Voice/text goal without a new photo — uses ECP context only (limited)."""
+    raise HTTPException(
+        400,
+        "Vision goals require a camera photo. Use the Vision panel: point your phone at the TV, then tap Do one step.",
+    )
+
+
+@app.get("/api/voice/status")
+async def voice_status():
+    from server.llm import llm_available
+
+    local_ip = _get_local_ip()
+    brain = llm_provider() or "rules"
+    return {
+        "enabled": True,
+        "agent": brain,
+        "brain": brain,
+        "llm": llm_available(),
         "transcribe": transcribe_available(),
-        "mic_mode": "groq_whisper" if transcribe_available() else "browser",
+        "mic_mode": "groq_whisper" if transcribe_available() else "text",
         "secure_context": True,  # client checks window.isSecureContext
         "mic_requires_https": True,
         "https_url": f"https://{local_ip}:8443" if local_ip else None,
-        "movie_lookup": (
-            "tmdb+brave" if os.getenv("TMDB_API_KEY") and brave_available()
-            else "brave" if brave_available()
-            else "tmdb" if os.getenv("TMDB_API_KEY")
-            else "gemini"
-        ),
+        "mode": "play",
+        "search_behavior": "Roku /search/browse → app deep-link → play",
         "hints": [
-            "Play Inception",
+            "Play Pursuit of Happyness",
+            "Watch Inception on Netflix",
             "Open Netflix",
-            "Press down 3 times",
-            "Type batman",
+            "Press down",
             "Go home",
-            "Volume up",
         ],
+        "user_action_after_search": None,
     }
 
 
@@ -387,7 +595,7 @@ async def transcribe_voice(audio: UploadFile = File(...)):
 
 @app.post("/api/voice/demo")
 async def voice_demo(req: VoiceRequest):
-    """Run a voice play command and return step-by-step search debug info."""
+    """Search-only debug — types query in Roku Search, does not play."""
     host = config.get("host")
     platform = config.get("platform")
     if not host or not platform:
@@ -395,42 +603,29 @@ async def voice_demo(req: VoiceRequest):
     if platform != "roku":
         raise HTTPException(400, "Voice demo supports Roku TVs only.")
 
-    from server.movie_lookup import lookup_media
-    from server.play_orchestrator import build_play_plan
+    from server.roku_search_only import run_roku_search_only
     from server.voice_agent import parse_command
 
     try:
         command = await parse_command(req.text.strip())
         title = (command.title or req.text.strip()).strip()
-        media = await lookup_media(title) if title else None
-        plan = build_play_plan(
-            heard=req.text.strip(),
-            requested_title=title,
-            requested_app=command.app,
-            media=media,
-        )
-
         session = await get_roku_session(host)
-        search_result = await session.roku_search_and_play(
-            plan.search_text,
-            preferred_app=plan.app,
-            title=plan.title,
-            plan_summary=plan.summary(),
+        result = await run_roku_search_only(
+            session,
+            heard=req.text.strip(),
+            title=title,
+            app=command.app,
         )
 
         return {
             "ok": True,
             "heard": req.text.strip(),
-            "plan": plan.to_dict(),
-            "search_query": search_result.get("query", plan.search_text),
-            "search_method": search_result.get("method"),
-            "search_steps": search_result.get("steps"),
-            "screen_context": search_result.get("screen_context"),
-            "screen_trail": search_result.get("screen_trail"),
-            "note": (
-                "Screen state is polled via ECP-2 (textedit-state, active-app). "
-                f"Target query: {search_result.get('query', plan.search_text)!r}"
-            ),
+            "plan": result.plan.to_dict(),
+            "search_query": result.search_query,
+            "search_method": result.method,
+            "search_steps": result.log_text(),
+            "screen_context": result.screen_context,
+            "note": "Search-only — no playback keys sent.",
         }
     except RokuEcp2Error as exc:
         raise HTTPException(502, str(exc)) from exc
@@ -542,11 +737,80 @@ async def launch_app(req: AppRequest):
     return {"app": app_name}
 
 
+@app.get("/api/health")
+async def health_check():
+    """Fast liveness check — no network scan."""
+    local_ip = _get_local_ip()
+    local_ips = _get_local_ips()
+    host = config.get("host")
+    tv_reachable: bool | None = None
+    if host and config.get("platform") == "roku":
+        try:
+            tv_reachable = await probe_roku(host, timeout=2.0)
+        except Exception:
+            tv_reachable = False
+
+    issues: list[str] = []
+    if not local_ips:
+        issues.append(
+            "Server has no LAN network access — start with ./start.sh in Terminal.app "
+            "(not from a sandboxed IDE shell)."
+        )
+    if host and tv_reachable is False:
+        issues.append(
+            f"TV at {host} is not responding on port 8060 — check TV is on, "
+            "same Wi‑Fi, and IP in Settings → Network → About."
+        )
+
+    return {
+        "ok": True,
+        "host": host,
+        "platform": config.get("platform"),
+        "server_ip": local_ip,
+        "local_ips": local_ips,
+        "lan_ok": bool(local_ips),
+        "tv_reachable": tv_reachable,
+        "issues": issues,
+        "urls": {
+            "https": f"https://{local_ip}:8443" if local_ip else None,
+            "http": f"http://{local_ip}:8080" if local_ip else None,
+        },
+    }
+
+
 @app.get("/api/scan")
 async def scan_network(platform: str = "auto"):
-    """Discover TVs on Wi-Fi via mDNS (Roku) or subnet scan (VIDAA)."""
-    tvs = await discover_tvs(platform=platform)
-    return {"tvs": tvs, "method": "mdns" if platform in ("auto", "roku") else "subnet"}
+    """Discover TVs on Wi-Fi via saved host, mDNS, and subnet scan."""
+    from server.discovery import _get_local_ips, _subnet_prefixes, discover_tvs_with_diagnostics
+
+    try:
+        result = await discover_tvs_with_diagnostics(platform=platform, timeout=5.0)
+    except Exception as exc:
+        raise HTTPException(500, f"Scan error: {exc}") from exc
+
+    saved = result.get("saved_host")
+    reachable = result.get("saved_host_reachable")
+    hint = None
+    if not result["tvs"]:
+        if saved and reachable is False:
+            hint = (
+                f"Saved TV at {saved} is not responding. "
+                "Check the TV is on, same Wi‑Fi, and get the IP from Settings → Network → About."
+            )
+        elif not result.get("local_ips"):
+            hint = "Server has no LAN IP — run ./start.sh on your Mac (same Wi‑Fi as the TV)."
+        else:
+            hint = "No Roku found on your network. Enter the TV IP manually."
+
+    return {
+        "tvs": result["tvs"],
+        "method": "saved+ssdp+mdns+arp+subnet" if platform in ("auto", "roku") else "subnet",
+        "local_ips": result.get("local_ips") or _get_local_ips(),
+        "scan_subnets": result.get("scan_subnets") or _subnet_prefixes(),
+        "saved_host": saved,
+        "saved_host_reachable": reachable,
+        "hint": hint,
+    }
 
 
 @app.post("/api/connect/auto")

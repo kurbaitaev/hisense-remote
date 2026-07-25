@@ -1,0 +1,324 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="Roku Remote">
+<meta name="theme-color" content="#0a0a0f">
+<title>Roku Remote</title>
+<link rel="manifest" href="/manifest.webmanifest">
+<style>
+:root{--bg:#0a0a0f;--surface:#14141f;--surface-2:#1c1c2a;--border:#2a2a3d;--text:#f0f0f5;--muted:#8888a0;--accent:#00b4d8;--danger:#ff4757;--r:14px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh}
+.app{max-width:420px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom))}
+.hidden{display:none!important}
+h1{font-size:1.15rem;font-weight:600}
+.sub{font-size:.8rem;color:var(--muted);margin:4px 0 16px;line-height:1.4}
+.sub.ok{color:#4ade80}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+.row{display:flex;gap:8px}
+input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:1rem}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-weight:600}
+.btn{padding:12px 16px;background:var(--accent);color:#000}
+.btn2{padding:12px;background:var(--surface-2);color:var(--text);border:1px solid var(--border)}
+.btn-link{background:none;color:var(--accent);padding:8px 0;font-size:.82rem}
+.err{color:#ff6b6b;font-size:.82rem;margin-top:8px}
+.top{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.vol{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px}
+.vol span{font-size:.75rem;color:var(--muted);text-transform:uppercase}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,64px);gap:8px;max-width:240px;margin:0 auto 16px}
+.dpad .u{grid-column:2;grid-row:1}
+.dpad .l{grid-column:1;grid-row:2}
+.dpad .o{grid-column:2;grid-row:2;background:var(--accent);color:#000;font-weight:700}
+.dpad .r{grid-column:3;grid-row:2}
+.dpad .d{grid-column:2;grid-row:3}
+.media,.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.apps{grid-template-columns:repeat(3,1fr)}
+.k,.key-app{padding:14px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1rem}
+.key-app{font-size:.72rem}
+.k.power{color:var(--danger)}
+.k.pressed,.key-app.pressed{transform:scale(.94);opacity:.85}
+.play-row{display:flex;gap:8px;margin-bottom:8px}
+.play-row input{flex:1}
+.hint{font-size:.75rem;color:var(--muted);line-height:1.4}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:999px;font-size:.85rem;z-index:9;max-width:90vw;text-align:center}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>Roku Remote</h1>
+  <p id="status" class="sub">Your phone → your TV · same Wi‑Fi</p>
+
+  <div id="setup" class="card">
+    <p id="scan-msg" class="hint">Finding your TV…</p>
+    <div class="row hidden" id="manual-row">
+      <input id="ip" inputmode="decimal" placeholder="192.168.0.154" autocomplete="off">
+      <button id="find" class="btn2" type="button">Retry</button>
+    </div>
+    <div class="row hidden" style="margin-top:10px" id="connect-row">
+      <button id="go" class="btn" type="button" style="flex:1">Connect</button>
+    </div>
+    <p class="hint" style="margin-top:10px">Enable <em>Control by mobile apps</em> on the TV.</p>
+    <p id="err" class="err hidden"></p>
+  </div>
+
+  <div id="remote" class="hidden">
+    <div class="card">
+      <div class="play-row">
+        <input id="play" placeholder="Play Inception…">
+        <button id="playBtn" class="btn" type="button">Go</button>
+      </div>
+      <button id="change" class="btn-link" type="button">Change TV</button>
+    </div>
+    <div class="top">
+      <button class="k power" data-k="PowerOff">⏻</button>
+      <button class="k" data-k="VolumeMute">Mute</button>
+      <button class="k" data-k="Home">Home</button>
+      <button class="k" data-k="Back">Back</button>
+    </div>
+    <div class="vol">
+      <button class="k" data-k="VolumeDown">−</button>
+      <span>Vol</span>
+      <button class="k" data-k="VolumeUp">+</button>
+    </div>
+    <div class="dpad">
+      <button class="k u" data-k="Up">▲</button>
+      <button class="k l" data-k="Left">◀</button>
+      <button class="k o" data-k="Select">OK</button>
+      <button class="k r" data-k="Right">▶</button>
+      <button class="k d" data-k="Down">▼</button>
+    </div>
+    <div class="media">
+      <button class="k" data-k="Rev">⏪</button>
+      <button class="k" data-k="Play">▶</button>
+      <button class="k" data-k="Pause">⏸</button>
+      <button class="k" data-k="Fwd">⏩</button>
+    </div>
+    <div class="apps">
+      <button class="key-app" data-app="12">Netflix</button>
+      <button class="key-app" data-app="837">YouTube</button>
+      <button class="key-app" data-app="31440">Paramount</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast hidden"></div>
+<script>
+const KEY = "roku-remote-ip";
+const PREFIXES = ["192.168.0", "192.168.1", "192.168.4", "10.0.0"];
+let tv = "";
+let scanning = false;
+const $ = (id) => document.getElementById(id);
+const base = (ip) => `http://${ip}:8060`;
+const https = location.protocol === "https:";
+
+function toast(m, ms = 2200) {
+  const t = $("toast");
+  t.textContent = m;
+  t.classList.remove("hidden");
+  setTimeout(() => t.classList.add("hidden"), ms);
+}
+function showErr(m) {
+  $("err").textContent = m;
+  $("err").classList.remove("hidden");
+}
+function setScanMsg(m) {
+  $("scan-msg").textContent = m;
+}
+function showManual() {
+  $("manual-row").classList.remove("hidden");
+  $("connect-row").classList.remove("hidden");
+}
+
+function fetchOpts(timeoutMs = 2200) {
+  const opts = { signal: AbortSignal.timeout(timeoutMs) };
+  if (https) opts.targetAddressSpace = "private";
+  return opts;
+}
+
+function localSubnets() {
+  return new Promise((resolve) => {
+    const found = new Set(PREFIXES);
+    const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
+    pc.createDataChannel("");
+    pc.onicecandidate = (e) => {
+      if (!e.candidate) return;
+      const m = /(\d+\.\d+\.\d+)\.\d+/.exec(e.candidate.candidate || "");
+      if (m) found.add(m[1]);
+    };
+    pc.createOffer().then((o) => pc.setLocalDescription(o)).catch(() => {});
+    setTimeout(() => {
+      pc.close();
+      resolve([...found]);
+    }, 1200);
+  });
+}
+
+function ecpPost(ip, path, ms = 5000) {
+  const url = `${base(ip)}${path}`;
+  if (!https) {
+    const c = new AbortController();
+    const t = setTimeout(() => c.abort(), ms);
+    return fetch(url, { method: "POST", signal: c.signal }).finally(() => clearTimeout(t));
+  }
+  return new Promise((resolve) => {
+    const frame = document.createElement("iframe");
+    frame.name = "ecp_" + Date.now();
+    frame.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0";
+    document.body.appendChild(frame);
+    const form = document.createElement("form");
+    form.method = "POST";
+    form.action = url;
+    form.target = frame.name;
+    document.body.appendChild(form);
+    form.submit();
+    setTimeout(() => {
+      form.remove();
+      frame.remove();
+      resolve({ ok: true, status: 200 });
+    }, 350);
+  });
+}
+
+async function probe(ip) {
+  try {
+    const r = await fetch(`${base(ip)}/query/device-info`, fetchOpts(2200));
+    if (!r.ok) return null;
+    const x = await r.text();
+    if (!/device-info|friendly-device-name|model-name|Roku/i.test(x)) return null;
+    const name = (x.match(/<friendly-device-name>([^<]+)/) || x.match(/<model-name>([^<]+)/) || [])[1] || ip;
+    return { name, ip };
+  } catch {
+    return null;
+  }
+}
+
+async function scan() {
+  if (scanning) return null;
+  scanning = true;
+  $("err").classList.add("hidden");
+  setScanMsg("Finding your TV…");
+
+  const saved = localStorage.getItem(KEY);
+  if (saved) {
+    setScanMsg("Checking saved TV…");
+    const hit = await probe(saved);
+    if (hit) {
+      scanning = false;
+      return hit;
+    }
+  }
+
+  const prefixes = await localSubnets();
+  const ordered = [...new Set([
+    ...(saved ? [saved.split(".").slice(0, 3).join(".")] : []),
+    ...prefixes,
+  ])];
+
+  for (const pre of ordered) {
+    setScanMsg(`Scanning ${pre}.x …`);
+    for (let b = 1; b < 255; b += 36) {
+      const jobs = [];
+      for (let i = b; i < b + 36 && i < 255; i++) jobs.push(probe(`${pre}.${i}`));
+      const hit = (await Promise.all(jobs)).find(Boolean);
+      if (hit) {
+        scanning = false;
+        return hit;
+      }
+    }
+  }
+  scanning = false;
+  return null;
+}
+
+async function connect(ip, name) {
+  tv = ip;
+  localStorage.setItem(KEY, ip);
+  $("status").textContent = `${name || ip} · ${ip}`;
+  $("status").classList.add("ok");
+  $("setup").classList.add("hidden");
+  $("remote").classList.remove("hidden");
+  toast("Connected");
+}
+
+async function autoConnect() {
+  const hit = await scan();
+  if (hit) {
+    $("ip").value = hit.ip;
+    await connect(hit.ip, hit.name);
+    return;
+  }
+  setScanMsg("Couldn't find your TV.");
+  showErr("Same Wi‑Fi as TV? Allow local network if the browser asks, then Retry.");
+  showManual();
+}
+
+document.querySelectorAll("[data-k]").forEach((b) => {
+  b.onclick = async () => {
+    if (!tv) return;
+    b.classList.add("pressed");
+    setTimeout(() => b.classList.remove("pressed"), 100);
+    try {
+      const r = await ecpPost(tv, `/keypress/${b.dataset.k}`);
+      if (r.status === 403) toast("Enable Control by mobile apps on TV");
+    } catch {
+      toast("Failed — same Wi‑Fi as TV?");
+    }
+  };
+});
+
+document.querySelectorAll("[data-app]").forEach((b) => {
+  b.onclick = async () => {
+    if (!tv) return;
+    try {
+      await ecpPost(tv, `/launch/${b.dataset.app}`);
+    } catch {
+      toast("Launch failed");
+    }
+  };
+});
+
+$("go").onclick = async () => {
+  const ip = $("ip").value.trim();
+  if (!ip) return;
+  const hit = await probe(ip);
+  if (!hit) {
+    showErr(`No Roku at ${ip}.`);
+    return;
+  }
+  await connect(hit.ip, hit.name);
+};
+$("find").onclick = () => autoConnect();
+
+$("playBtn").onclick = async () => {
+  const t = $("play").value.trim();
+  if (!t || !tv) return;
+  toast(`Playing “${t}”…`, 3500);
+  try {
+    await ecpPost(
+      tv,
+      `/search/browse?title=${encodeURIComponent(t)}&provider-id=12,13,31440&launch=true&match-any=true`,
+      12000,
+    );
+  } catch {
+    toast("Failed");
+  }
+};
+
+$("change").onclick = () => {
+  tv = "";
+  $("remote").classList.add("hidden");
+  $("setup").classList.remove("hidden");
+  $("manual-row").classList.add("hidden");
+  $("connect-row").classList.add("hidden");
+  $("err").classList.add("hidden");
+  $("status").textContent = "Your phone → your TV · same Wi‑Fi";
+  $("status").classList.remove("ok");
+  autoConnect();
+};
+
+autoConnect();
+</script>
+</body>
+</html>

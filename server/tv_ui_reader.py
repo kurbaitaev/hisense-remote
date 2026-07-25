@@ -98,8 +98,28 @@ class MediaPlayerInfo:
     quality: SignalQuality = SignalQuality.UNAVAILABLE
 
     @property
+    def is_warming_up(self) -> bool:
+        """App reports a player, but no real title is loaded yet (e.g. Paramount splash)."""
+        if self.quality != SignalQuality.OBSERVED:
+            return False
+        if self.state == "startup":
+            return True
+        return self.state == "buffer" and not (self.duration_ms or 0)
+
+    @property
+    def is_confirmed_playback(self) -> bool:
+        """True only when media is actually playing or paused mid-watch."""
+        if self.quality != SignalQuality.OBSERVED:
+            return False
+        if self.state == "play":
+            return True
+        if self.state in ("pause", "buffer") and (self.duration_ms or 0) > 0:
+            return True
+        return False
+
+    @property
     def is_playing(self) -> bool:
-        return self.state in ("play", "buffer", "pause", "startup")
+        return self.is_confirmed_playback
 
 
 @dataclass
@@ -368,7 +388,7 @@ def _classify_screen(
     blind: list[str] = []
     note = ""
 
-    if player.quality == SignalQuality.OBSERVED and player.is_playing:
+    if player.quality == SignalQuality.OBSERVED and player.is_confirmed_playback:
         readable.append("media_player")
         return (
             UiScreen.PLAYING,
@@ -380,6 +400,21 @@ def _classify_screen(
         )
 
     name_lower = app_name.lower()
+
+    if textedit.readable and textedit.in_field:
+        readable.append("search_bar")
+        return (
+            UiScreen.ROKU_SEARCH_TYPING,
+            f"Roku Search — typing ({app_name})",
+            FocusHint(
+                FocusKind.SEARCH_FIELD,
+                "cursor in universal search field",
+                SignalQuality.OBSERVED,
+            ),
+            readable,
+            ["which result row", "provider icons"],
+            note,
+        )
 
     if name_lower == "search" or (app_id == APP_HOME_SEARCH and name_lower == "search"):
         readable.append("search_bar")

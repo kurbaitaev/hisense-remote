@@ -1,0 +1,19 @@
+{
+  "name": "Roku Direct",
+  "short_name": "Roku Direct",
+  "description": "Phone remote — talks straight to your Roku TV, no home server",
+  "start_url": "/direct",
+  "scope": "/direct",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "icons": [
+    {
+      "src": "/static/icons/icon-192.svg",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    }
+  ]
+}

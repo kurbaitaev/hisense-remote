@@ -37,6 +37,11 @@ class PlayPlan:
     def summary(self) -> str:
         year = f" ({self.year})" if self.year else ""
         app = f" on {self.app.title()}" if self.app else ""
+        if self.intent == "roku_search":
+            return (
+                f"Looking for “{self.title}”{year}{app}. "
+                f"I'll type “{self.search_text}” in Roku Search — you press Play."
+            )
         return (
             f"You want to watch “{self.title}”{year}{app}. "
             f"I'll search Roku for “{self.search_text}”."
@@ -90,11 +95,14 @@ def build_play_plan(
     else:
         search_reason = "Using your words as-is (no movie database match)."
 
-    if preferred in ("netflix", "paramount"):
+    if preferred in ("paramount", "netflix"):
         steps = [
-            f"Open {preferred.title()} search directly",
-            f'Search for "{search_text}" inside the app',
-            f'OK on “{title}”, then OK to play',
+            f'Roku search/browse for "{search_text}"' + (
+                f" on {preferred.title()}" if preferred else ""
+            ),
+            "On Paramount Who's Watching: OK on top profile (never Down — Kids is below)",
+            "OK the top search match (never Down on results — that picks the wrong row)",
+            "OK Watch, then Play if needed",
         ]
     else:
         steps = [

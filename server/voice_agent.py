@@ -1,4 +1,4 @@
-"""Voice/text assistant for the Hisense Roku remote."""
+"""Voice/text commands for the Hisense Roku remote — search-only for play/watch requests."""
 
 from __future__ import annotations
 
@@ -7,11 +7,9 @@ import re
 from dataclasses import dataclass
 from typing import Any, Literal
 
-from server.apps_config import get_installed_apps
 from server.llm import llm_available, llm_provider, parse_voice_json
-from server.movie_lookup import APP_PRIORITY, lookup_media
-from server.play_orchestrator import build_play_plan
-from server.roku_ecp2 import APP_MAP, RokuEcp2Client
+from server.roku_ecp2 import RokuEcp2Client
+from server.smart_agent import run_play_goal
 
 Action = Literal[
     "open_app",
@@ -97,6 +95,9 @@ APP_ALIASES = {
     "paramount plus": "paramount",
 }
 
+SEARCH_ACTIONS = frozenset({"play_media", "search_media", "roku_search"})
+FAST_ACTIONS = frozenset({"go_home", "send_key", "send_keys", "type_text", "open_app"})
+
 
 def _normalize_app(value: str | None) -> str | None:
     if not value:
@@ -109,28 +110,6 @@ def _normalize_key(value: str | None) -> str | None:
         return None
     cleaned = value.strip().lower().replace("_", " ")
     return KEY_ALIASES.get(cleaned, cleaned.replace(" ", "_"))
-
-
-def _installed_apps() -> set[str]:
-    return set(get_installed_apps())
-
-
-def _pick_provider(
-    providers: list[str],
-    preferred: str | None = None,
-) -> str | None:
-    installed = _installed_apps()
-    if preferred:
-        app = _normalize_app(preferred)
-        if app and app in installed:
-            return app
-    for app in providers:
-        if app in installed:
-            return app
-    for app in APP_PRIORITY:
-        if app in installed:
-            return app
-    return None
 
 
 def _parse_key_phrase(text: str) -> str | None:
@@ -265,6 +244,9 @@ async def parse_command(text: str) -> VoiceCommand:
     if llm_available():
         prompt = f"""Parse this TV remote voice command for a Roku TV.
 
+The assistant opens Roku universal Search and types the user's exact words.
+It never auto-plays, never presses OK/Down after typing, and never rewrites sports/events into movies.
+
 Return JSON only with this schema:
 {{
   "action": "open_app|play_media|search_media|roku_search|send_key|send_keys|type_text|go_home|unknown",
@@ -282,11 +264,7 @@ Examples:
 - "search for Dune" -> search_media, title Dune
 - "go home" -> go_home
 - "press down" -> send_key, key down
-- "click ok" -> send_key, key ok
-- "press down 3 times" -> send_keys, keys ["down","down","down"]
 - "type batman" -> type_text, text batman
-- "volume up" -> send_key, key volume_up
-- "turn off" -> send_key, key power
 
 User command: {text!r}
 """
@@ -376,85 +354,70 @@ async def execute_command(session: RokuEcp2Client, command: VoiceCommand) -> Voi
             app=command.app,
         )
 
-    if command.action in ("play_media", "search_media"):
+    if command.action in SEARCH_ACTIONS:
         title = (command.title or "").strip()
         if not title:
             return VoiceResult(message="What should I search for?", action="unknown")
 
-        media = await lookup_media(title)
-        plan = build_play_plan(
+        agent_result = await run_play_goal(
+            session,
             heard=command.raw_text,
-            requested_title=title,
-            requested_app=command.app,
-            media=media,
+            title=title,
+            app=command.app,
         )
+        plan = agent_result.plan or {}
+        display_title = plan.get("title") or title
+        search_query = plan.get("search_text") or title
+        year = plan.get("year")
+        year_suffix = f" ({year})" if year else ""
+        app_name = plan.get("app")
 
-        search_result = await session.roku_search_and_play(
-            plan.search_text,
-            preferred_app=plan.app,
-            title=plan.title,
-            plan_summary=plan.summary(),
-        )
-
-        message = plan.summary()
-        if plan.app:
-            message += f" Using {plan.app.title()}."
+        if agent_result.success:
+            message = f"Playing “{display_title}”{year_suffix}."
+            if app_name:
+                message = f"Playing “{display_title}”{year_suffix} on {app_name.title()}."
+        else:
+            message = agent_result.message
 
         return VoiceResult(
             message=message,
-            action="play_media",
-            app=plan.app,
-            title=plan.title,
-            search_query=search_result.get("query", plan.search_text),
-            providers=plan.providers,
-            search_steps=search_result.get("steps"),
-            search_method=search_result.get("method"),
-            screen_context=search_result.get("screen_context"),
-            screen_trail=search_result.get("screen_trail"),
-            plan=plan.to_dict(),
-        )
-
-    if command.action == "roku_search" and command.title:
-        media = await lookup_media(command.title)
-        plan = build_play_plan(
-            heard=command.raw_text,
-            requested_title=command.title or "",
-            requested_app=command.app,
-            media=media,
-        )
-        search_result = await session.roku_search_and_play(
-            plan.search_text,
-            preferred_app=plan.app,
-            title=plan.title,
-            plan_summary=plan.summary(),
-        )
-        return VoiceResult(
-            message=plan.summary(),
-            action="roku_search",
-            title=plan.title,
-            search_query=search_result.get("query", plan.search_text),
-            search_steps=search_result.get("steps"),
-            search_method=search_result.get("method"),
-            screen_context=search_result.get("screen_context"),
-            screen_trail=search_result.get("screen_trail"),
-            plan=plan.to_dict(),
+            action="play_media" if agent_result.success else "roku_search",
+            app=app_name,
+            title=display_title,
+            search_query=search_query,
+            providers=plan.get("providers"),
+            search_steps=agent_result.log_text(),
+            search_method=agent_result.agent,
+            screen_context=agent_result.final_ui,
+            plan=plan,
         )
 
     return VoiceResult(
         message=(
-            "Try: “Play Inception”, “Open Netflix”, “Press down”, “Type batman”, "
-            "or “Watch The Matrix on Prime”. "
-            "Set GROQ_API_KEY or GEMINI_API_KEY for smarter commands."
+            'Try: “Play Inception”, “Search for Dune”, “Open Netflix”, '
+            '“Press down”, or “Type batman”.'
         ),
         action="unknown",
     )
 
 
-async def handle_voice_command(session: RokuEcp2Client, text: str) -> dict[str, Any]:
-    command = await parse_command(text)
-    result = await execute_command(session, command)
+def _parsed_payload(command: VoiceCommand) -> dict[str, Any]:
     return {
+        "action": command.action,
+        "app": command.app,
+        "title": command.title,
+        "key": command.key,
+        "keys": command.keys,
+        "text": command.text,
+    }
+
+
+def _fast_response(command: VoiceCommand, result: VoiceResult) -> dict[str, Any]:
+    return {
+        "mode": "fast",
+        "success": True,
         "message": result.message,
+        "log": None,
         "action": result.action,
         "app": result.app,
         "title": result.title,
@@ -465,13 +428,53 @@ async def handle_voice_command(session: RokuEcp2Client, text: str) -> dict[str, 
         "screen_trail": result.screen_trail,
         "plan": result.plan,
         "providers": result.providers,
-        "parsed": {
-            "action": command.action,
-            "app": command.app,
-            "title": command.title,
-            "key": command.key,
-            "keys": command.keys,
-            "text": command.text,
-        },
+        "parsed": _parsed_payload(command),
         "agent": llm_provider() or "rules",
     }
+
+
+def _search_response(command: VoiceCommand, result: VoiceResult) -> dict[str, Any]:
+    return {
+        "mode": "play" if result.action == "play_media" else "search",
+        "success": result.action == "play_media",
+        "message": result.message,
+        "log": result.search_steps,
+        "action": result.action,
+        "app": result.app,
+        "title": result.title,
+        "search_query": result.search_query,
+        "search_method": result.search_method,
+        "search_steps": result.search_steps,
+        "screen_context": result.screen_context,
+        "screen_trail": None,
+        "plan": result.plan,
+        "providers": result.providers,
+        "parsed": _parsed_payload(command),
+        "agent": llm_provider() or "rules",
+    }
+
+
+async def handle_voice_command(session: RokuEcp2Client, text: str) -> dict[str, Any]:
+    """Parse command, run keys/apps instantly, or type exact words in Roku Search."""
+    command = await parse_command(text)
+
+    if command.action in FAST_ACTIONS:
+        result = await execute_command(session, command)
+        return _fast_response(command, result)
+
+    if command.action in SEARCH_ACTIONS and command.title:
+        result = await execute_command(session, command)
+        return _search_response(command, result)
+
+    result = await execute_command(session, command)
+    if result.action == "unknown":
+        return {
+            "mode": "fast",
+            "success": False,
+            "message": result.message,
+            "log": None,
+            "action": "unknown",
+            "parsed": _parsed_payload(command),
+            "agent": llm_provider() or "rules",
+        }
+    return _fast_response(command, result)

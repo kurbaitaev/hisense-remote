@@ -12,22 +12,38 @@ const toastEl = $("#toast");
 
 let connected = false;
 let platform = null;
+let savedConnection = null;
 const lastKeyAt = new Map();
 
-async function api(path, options = {}) {
-  const res = await fetch(`/api${path}`, {
-    headers: { "Content-Type": "application/json" },
-    ...options,
-  });
-  const data = await res.json().catch(() => ({}));
-  if (!res.ok) {
-    const detail = data.detail;
-    const msg = Array.isArray(detail)
-      ? detail.map((d) => d.msg).join(", ")
-      : detail || res.statusText;
-    throw new Error(msg);
+async function api(path, options = {}, timeoutMs = 0) {
+  const controller = timeoutMs > 0 ? new AbortController() : null;
+  const timer = controller
+    ? setTimeout(() => controller.abort(), timeoutMs)
+    : null;
+
+  try {
+    const res = await fetch(`/api${path}`, {
+      headers: { "Content-Type": "application/json" },
+      ...options,
+      signal: controller?.signal,
+    });
+    const data = await res.json().catch(() => ({}));
+    if (!res.ok) {
+      const detail = data.detail;
+      const msg = Array.isArray(detail)
+        ? detail.map((d) => d.msg).join(", ")
+        : detail || res.statusText;
+      throw new Error(msg);
+    }
+    return data;
+  } catch (err) {
+    if (err.name === "AbortError") {
+      throw new Error("Request timed out — keep the remote open and try again.");
+    }
+    throw err;
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  return data;
 }
 
 function showToast(msg, duration = 2000) {
@@ -49,10 +65,8 @@ function setDiscovering(active, message = "Looking for TVs nearby") {
   if (active) {
     discoveringEl.classList.remove("hidden");
     discoveringEl.querySelector("span").textContent = message;
-    manualSetupEl.classList.add("hidden");
   } else {
     discoveringEl.classList.add("hidden");
-    manualSetupEl.classList.remove("hidden");
   }
 }
 
@@ -68,6 +82,13 @@ let isRecording = false;
 function setConnected(info) {
   connected = true;
   platform = info.platform;
+  savedConnection = { host: info.host, platform: info.platform };
+  try {
+    localStorage.setItem("tv-connection", JSON.stringify(savedConnection));
+  } catch {
+    /* private mode */
+  }
+  hideOffline();
   const label =
     info.device?.["friendly-device-name"] ||
     info.device?.["model-name"] ||
@@ -148,18 +169,57 @@ function renderScanResults(tvs) {
   });
 }
 
+async function checkServerHealth() {
+  try {
+    return await api("/health", {}, 5000);
+  } catch (err) {
+    throw new Error(
+      err.message.includes("fetch") || err.message.includes("Failed")
+        ? "Can't reach the remote server on this address."
+        : err.message,
+    );
+  }
+}
+
+async function loadSavedTvHint() {
+  try {
+    const cfg = await api("/config");
+    if (cfg.host) {
+      $("#tv-ip").value = cfg.host;
+      if (cfg.platform === "roku") $("#platform").value = "roku";
+      return cfg.host;
+    }
+  } catch {
+    /* server offline */
+  }
+  return null;
+}
+
 async function discoverAndConnect(platformFilter = "roku", autoConnect = true) {
   setDiscovering(true, "Searching for your Roku TV…");
   setupDesc.textContent = "Looking on your Wi‑Fi network…";
   clearError();
 
   try {
-    const data = await api(`/scan?platform=${platformFilter}`);
+    const data = await api(`/scan?platform=${platformFilter}`, {}, 45000);
 
     if (data.tvs.length === 0) {
+      const saved = data.saved_host || $("#tv-ip").value.trim() || (await loadSavedTvHint());
+      if (saved) {
+        setDiscovering(true, `Scan empty — connecting to ${saved}…`);
+        const ok = await connectTo(saved, platformFilter);
+        if (ok) return;
+      }
       setDiscovering(false);
-      setupDesc.textContent = "No TV found automatically. Enter your TV IP below, or tap Scan.";
-      showError("Couldn't find your TV on Wi‑Fi. Is it turned on?");
+      setupDesc.textContent = data.hint || (saved
+        ? `No TV found via scan. IP ${saved} is filled in — tap Connect.`
+        : "No TV found. Enter your TV IP below.");
+      showError(
+        data.hint || (saved
+          ? `Scan found nothing. Your TV may still be at ${saved} — tap Connect.`
+          : "Couldn't find your TV on Wi‑Fi. Is it on and on the same network?"),
+      );
+      if (saved) $("#tv-ip").value = saved;
       return;
     }
 
@@ -177,9 +237,23 @@ async function discoverAndConnect(platformFilter = "roku", autoConnect = true) {
       setupDesc.textContent = `${data.tvs.length} TVs found. Tap one to connect.`;
     }
   } catch (err) {
+    const saved = await loadSavedTvHint();
     setDiscovering(false);
-    setupDesc.textContent = "Auto-discovery failed. Enter your TV IP manually.";
-    showError(err.message);
+    setupDesc.textContent = saved
+      ? `Search failed. Try last known IP ${saved} below.`
+      : "Auto-discovery failed. Enter your TV IP manually.";
+    let hint = err.message;
+    if (err.message.includes("fetch") || err.message.includes("Failed") || err.message.includes("remote server")) {
+      hint =
+        "Can't reach the remote server. On your Mac run: cd hisense-remote && ./start.sh — then open the HTTPS URL it prints.";
+    } else if (err.message.includes("timed out")) {
+      hint = "Scan timed out. Tap Connect with your TV IP, or try Scan again.";
+    }
+    showError(
+      saved
+        ? `${hint} Or tap Connect with ${saved}.`
+        : hint,
+    );
   }
 }
 
@@ -192,8 +266,10 @@ async function sendKey(key) {
   try {
     await api("/key", { method: "POST", body: JSON.stringify({ key }) });
     if (key === "home") showToast("Home");
+    hideOffline();
   } catch (err) {
     showToast(`Error: ${err.message}`);
+    markOffline("Server unreachable — tap Retry");
   }
 }
 
@@ -237,8 +313,8 @@ async function loadVoiceStatus() {
   const hintEl = $("#voice-hint");
   try {
     voiceStatusData = await api("/voice/status");
-    const agent = voiceStatusData.agent && voiceStatusData.agent !== "rules" ? "AI" : "Basic";
-    const mode = voiceStatusData.transcribe ? "Groq Whisper" : "browser speech";
+    const brain = voiceStatusData.llm ? (voiceStatusData.brain || "AI") : "rules-only";
+    const mic = voiceStatusData.transcribe ? "Groq Whisper" : "text";
 
     if (!window.isSecureContext && voiceStatusData.https_url) {
       statusEl.textContent = "Mic needs HTTPS";
@@ -246,13 +322,60 @@ async function loadVoiceStatus() {
       return;
     }
 
-    statusEl.textContent = `${agent} ready · ${mode}`;
+    const mode = voiceStatusData.mode === "search_only" ? "search only" : "voice";
+    statusEl.textContent = `${brain} · ${mic} · ${mode}`;
     if (voiceStatusData.transcribe) {
-      hintEl.textContent = "Hold the mic, speak, then release. Example: “Play Inception”.";
+      hintEl.textContent =
+        "Hold the mic and speak. Your exact words are typed into Roku Search — then you browse on the remote.";
     }
   } catch {
-    statusEl.textContent = "Assistant unavailable";
+    statusEl.textContent = "Voice search unavailable";
   }
+}
+
+function formatAssistantResult(data) {
+  if (!data.success) {
+    return data.message || "Could not complete that command.";
+  }
+
+  if (data.mode === "fast") {
+    return data.message;
+  }
+
+  if (data.mode === "search") {
+    const query = data.search_query || data.title || data.message;
+    const parts = [`✓ Typed in Roku Search: "${query}"`];
+    if (data.user_action) {
+      parts.push(data.user_action);
+    }
+    if (data.search_steps) {
+      parts.push("", data.search_steps);
+    }
+    return parts.join("\n");
+  }
+
+  return data.message;
+}
+
+function assistantLoadingMessage(text) {
+  const lowered = text.trim().toLowerCase();
+  if (
+    /\b(watch|find|search(?:\s+for)?|show(?:\s+me)?)\b/.test(lowered) ||
+    /\bplay\s+\S/.test(lowered)
+  ) {
+    return "Opening Roku Search and typing your query…";
+  }
+  if (
+    /^(press|tap|hit|click|open|launch|start|go home|home|volume|mute|pause|play|type|enter)\b/.test(
+      lowered,
+    )
+  ) {
+    return "Running…";
+  }
+  if (lowered.length > 0) {
+    return "Opening Roku Search and typing your query…";
+  }
+  return "Running…";
 }
 
 async function runVoiceCommand(text) {
@@ -264,29 +387,23 @@ async function runVoiceCommand(text) {
   const micBtn = $("#voice-mic-btn");
   sendBtn.disabled = true;
   micBtn.disabled = true;
-  setVoiceResult(
-    "Working… opening app, searching, and pressing play.\nThis usually takes 20–40 seconds — keep the remote open.",
-  );
+  setVoiceResult(assistantLoadingMessage(command));
 
   try {
-    const data = await api("/voice", {
-      method: "POST",
-      body: JSON.stringify({ text: command }),
-    });
-    let msg = data.message;
-    if (data.plan) {
-      msg = [
-        data.plan.summary || data.message,
-        data.plan.search_reason ? `Search: ${data.plan.search_reason}` : "",
-        data.plan.app_reason ? `App: ${data.plan.app_reason}` : "",
-        data.search_query ? `Typing: “${data.search_query}”` : "",
-        data.search_steps ? data.search_steps : "",
-      ].filter(Boolean).join("\n");
-    } else if (data.search_steps) {
-      msg += `\n${data.search_steps}`;
-    }
-    setVoiceResult(msg);
-    showToast(data.plan?.summary || data.message, 3600);
+    const data = await api(
+      "/voice",
+      {
+        method: "POST",
+        body: JSON.stringify({ text: command }),
+      },
+      60000,
+    );
+    setVoiceResult(formatAssistantResult(data));
+    const toastMsg =
+      data.mode === "search" && data.search_query
+        ? `Search: ${data.search_query}`
+        : data.message;
+    showToast(toastMsg, 3600);
   } catch (err) {
     setVoiceResult(`Error: ${err.message}`);
     showToast(`Error: ${err.message}`);
@@ -502,7 +619,7 @@ $("#scan-btn").addEventListener("click", async () => {
 
   try {
     const platformFilter = $("#platform").value === "vidaa" ? "vidaa" : "roku";
-    const data = await api(`/scan?platform=${platformFilter}`);
+    const data = await api(`/scan?platform=${platformFilter}`, {}, 45000);
     if (data.tvs.length === 0) {
       showToast("No TVs found on your network.");
     } else {
@@ -510,7 +627,15 @@ $("#scan-btn").addEventListener("click", async () => {
       setupDesc.textContent = `${data.tvs.length} TV(s) found. Tap one to connect.`;
     }
   } catch (err) {
-    showToast(`Scan failed: ${err.message}`);
+    const saved = $("#tv-ip").value.trim();
+    let msg = err.message;
+    if (err.message.includes("fetch") || err.message.includes("Failed") || err.message.includes("remote server")) {
+      msg = "Can't reach server — run ./start.sh on your Mac";
+    } else if (saved) {
+      msg = `${err.message} — try Connect with ${saved}`;
+    }
+    showError(msg);
+    showToast(`Scan failed: ${msg}`);
   } finally {
     setDiscovering(false);
     btn.disabled = false;
@@ -550,33 +675,185 @@ async function init() {
   bindKeys();
   setupVoiceAssistant();
   try {
+    const health = await checkServerHealth();
+    if (health?.server_ip) {
+      setupDesc.textContent = `Server at ${health.server_ip}. Connecting to your TV…`;
+    }
     const cfg = await api("/config");
     if (cfg.host && cfg.platform) {
       $("#tv-ip").value = cfg.host;
       $("#platform").value = cfg.platform === "roku" ? "roku" : cfg.platform === "vidaa" ? "vidaa" : "auto";
       if (cfg.use_ssl !== undefined) $("#use-ssl").checked = cfg.use_ssl;
 
-      setDiscovering(true, "Reconnecting to your TV…");
-      try {
-        const data = await api("/connect", {
-          method: "POST",
-          body: JSON.stringify({
-            host: cfg.host,
-            platform: cfg.platform,
-            use_ssl: cfg.use_ssl ?? true,
-          }),
-        });
-        setConnected(data);
-        return;
-      } catch {
-        /* fall through to auto-discovery */
+      if (cfg.lan_ok === false) {
+        setupDesc.textContent = "Server may lack Wi‑Fi — trying saved TV IP anyway…";
       }
+
+      setDiscovering(true, `Connecting to ${cfg.host}…`);
+      const ok = await connectTo(
+        cfg.host,
+        cfg.platform === "roku" ? "roku" : cfg.platform,
+      );
+      if (ok) return;
+
+      setDiscovering(false);
+      setupDesc.textContent = `Couldn't connect to ${cfg.host}. Try Scan or Connect again.`;
     }
   } catch {
-    /* server not ready */
+    setupDesc.textContent = "Remote server not reachable. Start it with ./start.sh on your computer.";
+    showError("Can't reach the remote server. Run ./start.sh on your Mac, then reload this page.");
+    setDiscovering(false);
+    await loadSavedTvHint();
+    return;
   }
 
-  await discoverAndConnect("roku", true);
+  await discoverAndConnect("roku", false);
 }
 
+function markOffline(msg) {
+  const banner = $("#offline-banner");
+  const msgEl = $("#offline-msg");
+  if (msgEl) msgEl.textContent = msg || "Server offline";
+  banner?.classList.remove("hidden");
+  statusEl.classList.remove("connected");
+  statusEl.classList.add("reconnecting");
+  statusEl.textContent = "Reconnecting…";
+}
+
+function hideOffline() {
+  $("#offline-banner")?.classList.add("hidden");
+  statusEl.classList.remove("reconnecting");
+}
+
+function loadSavedConnection() {
+  try {
+    const raw = localStorage.getItem("tv-connection");
+    if (raw) return JSON.parse(raw);
+  } catch {
+    /* ignore */
+  }
+  return null;
+}
+
+async function tryReconnect() {
+  const saved = savedConnection || loadSavedConnection();
+  if (!saved?.host) return false;
+
+  statusEl.textContent = "Reconnecting…";
+  statusEl.classList.add("reconnecting");
+  try {
+    const health = await checkServerHealth();
+    if (!health.ok) return false;
+    const data = await api("/connect", {
+      method: "POST",
+      body: JSON.stringify({
+        host: saved.host,
+        platform: saved.platform || "roku",
+        use_ssl: true,
+      }),
+    });
+    setConnected(data);
+    showToast("Reconnected");
+    return true;
+  } catch {
+    markOffline("Mac asleep or server stopped — wake Mac, then Retry");
+    return false;
+  }
+}
+
+function setupConnectionWatchdog() {
+  const retryBtn = $("#offline-retry");
+  retryBtn?.addEventListener("click", () => tryReconnect());
+
+  setInterval(async () => {
+    if (!connected) return;
+    try {
+      await api("/health", {}, 4000);
+      hideOffline();
+    } catch {
+      markOffline("Connection lost — tap Retry");
+    }
+  }, 25000);
+
+  document.addEventListener("visibilitychange", () => {
+    if (document.visibilityState === "visible" && connected) {
+      tryReconnect();
+    }
+  });
+}
+
+function setupTabs() {
+  const panels = {
+    remote: $("#tab-remote"),
+    voice: $("#tab-voice"),
+  };
+
+  $$(".nav-btn").forEach((btn) => {
+    btn.addEventListener("click", () => {
+      const tab = btn.dataset.tab;
+      $$(".nav-btn").forEach((b) => b.classList.toggle("active", b === btn));
+      Object.entries(panels).forEach(([name, el]) => {
+        if (!el) return;
+        if (name === tab) {
+          el.hidden = false;
+          el.classList.add("active");
+        } else {
+          el.hidden = true;
+          el.classList.remove("active");
+        }
+      });
+    });
+  });
+}
+
+function setupPwa() {
+  if ("serviceWorker" in navigator) {
+    navigator.serviceWorker.register("/sw.js").catch(() => {});
+  }
+
+  const banner = $("#install-banner");
+  const installBtn = $("#install-btn");
+  const dismissBtn = $("#install-dismiss");
+  let deferredPrompt = null;
+
+  const isStandalone =
+    window.matchMedia("(display-mode: standalone)").matches
+    || window.navigator.standalone === true;
+
+  if (isStandalone || localStorage.getItem("pwa-dismiss") === "1") {
+    return;
+  }
+
+  window.addEventListener("beforeinstallprompt", (e) => {
+    e.preventDefault();
+    deferredPrompt = e;
+    banner.classList.remove("hidden");
+  });
+
+  const isIOS = /iPad|iPhone|iPod/.test(navigator.userAgent);
+  if (isIOS && !isStandalone) {
+    banner.classList.remove("hidden");
+    installBtn.textContent = "How";
+    installBtn.onclick = () => {
+      showToast("Safari → Share → Add to Home Screen", 5000);
+    };
+  }
+
+  installBtn?.addEventListener("click", async () => {
+    if (!deferredPrompt) return;
+    deferredPrompt.prompt();
+    await deferredPrompt.userChoice;
+    deferredPrompt = null;
+    banner.classList.add("hidden");
+  });
+
+  dismissBtn?.addEventListener("click", () => {
+    banner.classList.add("hidden");
+    localStorage.setItem("pwa-dismiss", "1");
+  });
+}
+
+setupTabs();
+setupPwa();
+setupConnectionWatchdog();
 init();

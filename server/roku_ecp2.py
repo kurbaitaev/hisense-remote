@@ -443,30 +443,107 @@ class RokuEcp2Client:
         await self._reset_to_home_focus()
 
     async def _wipe_search_bar(self) -> None:
-        """Tap Backspace to clear the field (hold causes stuck keys / keyboard focus)."""
+        """Clear the search field only when ECP confirms cursor is in the bar."""
+        ctx = await read_screen(self)
+        if not ctx.in_search_field:
+            logger.info("Skip Backspace wipe — focus not in search field")
+            return
         await self._tap_key("Backspace", count=40, delay=0.1)
         await self._release_keys("Backspace")
         await asyncio.sleep(0.3)
 
+    async def _open_search_via_api(self, query: str) -> bool:
+        """Open Roku universal search with a title — no on-screen keyboard."""
+        from server.roku_search_browse import http_search_browse, provider_ids_for_apps
+
+        ids = provider_ids_for_apps()
+        if not ids:
+            return False
+        return await http_search_browse(
+            self.host,
+            query,
+            provider_ids=ids,
+            launch=False,
+        )
+
+    async def _wait_for_search_text(
+        self,
+        query: str,
+        *,
+        timeout_s: float = 12.0,
+    ) -> ScreenContext:
+        deadline = time.monotonic() + timeout_s
+        while time.monotonic() < deadline:
+            ctx = await read_screen(self, target_query=query)
+            if ctx.search_matches(query):
+                return ctx
+            if ctx.on_search() and ctx.search_text:
+                return ctx
+            await asyncio.sleep(0.5)
+        return await read_screen(self, target_query=query)
+
     async def _type_in_search(self, query: str) -> str:
-        """Wipe the search bar completely, then type the query once."""
+        """Fill the Roku search bar without Lit_ keys (they type garbage on the keyboard)."""
         query = self._sanitize_search_query(query)
         if not query:
             raise RokuEcp2Error("Empty search query")
 
-        logger.info("Roku search: wipe bar, then type %r", query)
-        await self._wipe_search_bar()
-        await self._type_lit(query)
-        await self._release_keys("Backspace")
-        await asyncio.sleep(0.4)
-        return "lit-keys"
+        logger.info("Roku search: %r", query)
+
+        if await self._open_search_via_api(query):
+            ctx = await self._wait_for_search_text(query)
+            if ctx.search_matches(query):
+                return "search-browse"
+
+        ctx = await read_screen(self, target_query=query)
+        if ctx.search_matches(query):
+            return "search-browse"
+
+        if not ctx.on_search():
+            ctx = await self._open_search_minimal([], query)
+
+        ctx = await read_screen(self, target_query=query)
+        if ctx.search_matches(query):
+            return "already-typed"
+
+        if not ctx.in_search_field:
+            try:
+                await self.send_text(query)
+                await asyncio.sleep(1.0)
+                ctx = await read_screen(self, target_query=query)
+                if ctx.search_matches(query):
+                    return "send-text"
+            except RokuEcp2Error:
+                pass
+            raise RokuEcp2Error(
+                "Search field not focused — refusing keyboard keys (would type garbage)",
+            )
+
+        if ctx.search_text and not ctx.search_matches(query):
+            await self._wipe_search_bar()
+
+        await self.send_text(query)
+        await asyncio.sleep(0.8)
+        ctx = await read_screen(self, target_query=query)
+        if ctx.search_matches(query):
+            return "send-text"
+
+        raise RokuEcp2Error(
+            f'Search bar shows "{ctx.search_text}" instead of "{query}"',
+        )
 
     async def _open_search_minimal(self, log: list[str], query: str) -> ScreenContext:
-        """Open Roku Search without Back storms or Settings detours."""
+        """Open Roku Search — API first, then home navigation."""
         ctx = await read_screen(self, target_query=query)
         if ctx.on_search():
             await self._record_screen_step(log, "Already on Search", ctx)
             return ctx
+
+        if await self._open_search_via_api(query):
+            ctx = await self._wait_for_search_text(query, timeout_s=10.0)
+            if ctx.on_search():
+                await self._record_screen_step(log, "Opened Search via /search/browse", ctx)
+                return ctx
 
         async def try_open_from_home() -> ScreenContext | None:
             sequences = (
@@ -557,7 +634,27 @@ class RokuEcp2Client:
                 continue
         return False
 
+    async def search_browse(
+        self,
+        title: str,
+        *,
+        app_keys: list[str] | None = None,
+        launch: bool = True,
+    ) -> bool:
+        """One-shot search+launch via /search/browse (RokuAlexaLambdaSkill pattern)."""
+        from server.roku_search_browse import http_search_browse, provider_ids_for_apps
+
+        ids = provider_ids_for_apps(app_keys)
+        return await http_search_browse(
+            self.host,
+            title,
+            provider_ids=ids,
+            launch=launch,
+            match_any=True,
+        )
+
     async def _deep_link_search(self, app_key: str, query: str) -> bool:
+        """Launch a specific app with a search term (best for netflix/paramount/etc.)."""
         app_id = APP_MAP.get(app_key)
         if not app_id:
             return False
@@ -697,6 +794,41 @@ class RokuEcp2Client:
         key = self._normalize_preferred_app(preferred_app)
         return APP_MAP.get(key) if key else None
 
+    async def _select_paramount_profile(
+        self,
+        log: list[str],
+        query: str,
+        ui_ctx: ReadContext,
+    ) -> None:
+        """Dismiss Paramount+ profile picker before search/play keys.
+
+        Profiles are vertical: top = adult, below = Kids. Down moves to Kids.
+        profile_down_presses in config.json:
+        0 = OK on the top highlighted profile (adult);
+        1+ = Down that many times before OK (only if adult is not on top).
+        """
+        from server.apps_config import get_paramount_profile_down_presses
+
+        downs = get_paramount_profile_down_presses()
+        await asyncio.sleep(2.0)
+        ctx = await read_screen(self, target_query=query, ctx=ui_ctx)
+        await self._record_screen_step(
+            log,
+            "Paramount: Who's Watching — OK on top profile (adult), never Down to Kids",
+            ctx,
+        )
+        for _ in range(downs):
+            await self._send_key_raw("Down")
+            await asyncio.sleep(0.65)
+        await self._send_key_raw("Select")
+        await asyncio.sleep(3.0)
+        ctx = await read_screen(self, target_query=query, ctx=ui_ctx)
+        await self._record_screen_step(
+            log,
+            f"Paramount: entered profile (Down×{downs}, then OK)",
+            ctx,
+        )
+
     async def _wait_for_streaming_app(
         self,
         log: list[str],
@@ -730,10 +862,23 @@ class RokuEcp2Client:
         ui_ctx: ReadContext,
     ) -> bool:
         if app_key == "paramount":
-            await self._send_key_raw("Down")
-            await asyncio.sleep(0.9)
             ctx = await read_screen(self, target_query=query, ctx=ui_ctx)
-            await self._record_screen_step(log, "Down — focus first result", ctx)
+            if ctx.on_paramount() and ctx.phase == "ON_PARAMOUNT" and not ctx.is_playing():
+                await self._send_key_raw("Search")
+                await asyncio.sleep(2.5)
+                ctx = await read_screen(self, target_query=query, ctx=ui_ctx)
+                await self._record_screen_step(log, "Opened Paramount in-app search", ctx)
+                await self.send_text(query)
+                await asyncio.sleep(4.5)
+                ctx = await read_screen(self, target_query=query, ctx=ui_ctx)
+                await self._record_screen_step(log, f'Typed "{query}" in Paramount search', ctx)
+                await self._send_key_raw("Down")
+                await asyncio.sleep(0.8)
+                ctx = await read_screen(self, target_query=query, ctx=ui_ctx)
+                await self._record_screen_step(log, "Down — focus search results row", ctx)
+            else:
+                await asyncio.sleep(2.0)
+                await self._leave_search_field(log, query)
 
         await self._safe_select(log, query, f'OK — "{title}"')
         await asyncio.sleep(2.5)
@@ -787,6 +932,9 @@ class RokuEcp2Client:
                 if attempt == 0:
                     continue
                 raise
+
+            if app_key == "paramount":
+                await self._select_paramount_profile(log, query, ui_ctx)
 
             if await self._run_streaming_play_keys(log, query, app_key, title, ui_ctx):
                 ctx = await read_screen(self, target_query=query, ctx=ui_ctx)

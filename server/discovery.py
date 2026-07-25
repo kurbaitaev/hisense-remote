@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import json
+import re
 import socket
 import time
 from pathlib import Path
@@ -17,6 +18,9 @@ from server.tv_client import probe_vidaa
 CONFIG_PATH = Path(__file__).resolve().parent.parent / "config.json"
 
 ROKU_SERVICE = "_roku-rsp._tcp.local."
+
+# When route detection fails (sandbox / odd NIC), still try common home LANs.
+COMMON_SUBNETS = ("192.168.0", "192.168.1", "192.168.4", "10.0.0")
 
 
 def discover_roku_mdns(timeout: float = 3.0) -> list[dict[str, Any]]:
@@ -100,6 +104,14 @@ async def _describe_roku(ip: str) -> dict[str, Any]:
     }
 
 
+async def _probe_saved_roku(saved_host: str | None) -> dict[str, Any] | None:
+    if not saved_host:
+        return None
+    if await probe_roku(saved_host, timeout=2.5):
+        return await _describe_roku(saved_host)
+    return None
+
+
 async def discover_tvs(
     *,
     platform: str = "auto",
@@ -109,59 +121,128 @@ async def discover_tvs(
     found: list[dict[str, Any]] = []
     seen_ips: set[str] = set()
 
+    def merge(devices: list[dict[str, Any]]) -> None:
+        for device in devices:
+            ip = device.get("ip")
+            if ip and ip not in seen_ips:
+                seen_ips.add(ip)
+                found.append(device)
+
     if platform in ("auto", "roku"):
         saved_host = _load_saved_roku_host()
-        if saved_host and await probe_roku(saved_host, timeout=2.0):
-            device = await _describe_roku(saved_host)
-            seen_ips.add(saved_host)
-            found.append(device)
+        saved_device = await _probe_saved_roku(saved_host)
+        if saved_device:
+            merge([saved_device])
+            return found
 
-        if not found:
+        # Method 1: SSDP (Roku's primary discovery protocol)
+        try:
+            from server.roku_ssdp import discover_roku_ssdp
+
+            ssdp_devices = await asyncio.to_thread(discover_roku_ssdp, min(timeout, 3.5))
+        except Exception:
+            ssdp_devices = []
+        merge(ssdp_devices)
+        if found:
+            return found
+
+        # Method 2: mDNS
+        try:
             mdns_devices = await asyncio.to_thread(
-                discover_roku_mdns, min(timeout, 3.0)
+                discover_roku_mdns, min(timeout, 3.5)
             )
-            for device in mdns_devices:
-                if device["ip"] not in seen_ips:
-                    seen_ips.add(device["ip"])
-                    found.append(device)
+        except Exception:
+            mdns_devices = []
+        merge(mdns_devices)
+        if found:
+            return found
 
-        # Subnet scan is slow (~10s). Skip it when we already found a TV.
-        if not found:
-            for device in await _scan_subnet_for_roku():
-                if device["ip"] not in seen_ips:
-                    seen_ips.add(device["ip"])
-                    found.append(device)
+        # Method 3: probe ARP table candidates (fast, no full subnet scan)
+        merge(await _probe_arp_candidates())
+        if found:
+            return found
+
+        merge(await _scan_subnet_for_roku())
 
     if platform in ("auto", "vidaa") and not found:
-        for device in await _scan_subnet_for_vidaa():
-            if device["ip"] not in seen_ips:
-                found.append(device)
+        merge(await _scan_subnet_for_vidaa())
 
     return found
 
 
+async def discover_tvs_with_diagnostics(
+    *,
+    platform: str = "auto",
+    timeout: float = 4.0,
+) -> dict[str, Any]:
+    """Like discover_tvs but includes why saved host / scan failed."""
+    saved_host = _load_saved_roku_host() if platform in ("auto", "roku") else None
+    saved_reachable: bool | None = None
+    if saved_host:
+        saved_reachable = await probe_roku(saved_host, timeout=2.5)
+
+    tvs = await discover_tvs(platform=platform, timeout=timeout)
+
+    # If full scan missed it, still surface a reachable saved host.
+    if not tvs and saved_host and saved_reachable:
+        from server.discovery import _describe_roku
+
+        tvs = [await _describe_roku(saved_host)]
+
+    return {
+        "tvs": tvs,
+        "saved_host": saved_host,
+        "saved_host_reachable": saved_reachable,
+        "local_ips": _get_local_ips(),
+        "scan_subnets": _subnet_prefixes(),
+    }
+
+
+async def _probe_arp_candidates() -> list[dict[str, Any]]:
+    """Try Roku ECP on IPs recently seen on the LAN (from arp -a)."""
+    from server.roku_ssdp import ips_from_arp_table
+
+    candidates = ips_from_arp_table()
+    saved = _load_saved_roku_host()
+    if saved and saved not in candidates:
+        candidates.insert(0, saved)
+
+    devices: list[dict[str, Any]] = []
+    sem = asyncio.Semaphore(16)
+
+    async def check(ip: str) -> None:
+        async with sem:
+            if await probe_roku(ip, timeout=1.5):
+                devices.append(await _describe_roku(ip))
+
+    await asyncio.gather(*[check(ip) for ip in candidates[:64]])
+    return devices
+
+
 async def _scan_subnet_for_roku() -> list[dict[str, Any]]:
-    """Scan local subnet for Roku ECP on port 8060."""
-    local_ip = _get_local_ip()
-    if not local_ip:
+    """Scan local subnet(s) for Roku ECP on port 8060."""
+    prefixes = _subnet_prefixes()
+    if not prefixes:
         return []
 
-    prefix = ".".join(local_ip.split(".")[:3])
     found_ips: list[str] = []
-    stop = asyncio.Event()
+    seen: set[str] = set()
     sem = asyncio.Semaphore(64)
 
     async def check(host: str) -> None:
-        if stop.is_set():
-            return
         async with sem:
-            if stop.is_set():
+            if host in seen:
                 return
-            if await probe_roku(host, timeout=0.8):
-                found_ips.append(host)
-                stop.set()
+            if await probe_roku(host, timeout=1.2):
+                if host not in seen:
+                    seen.add(host)
+                    found_ips.append(host)
 
-    await asyncio.gather(*[check(f"{prefix}.{i}") for i in range(1, 255)])
+    hosts: list[str] = []
+    for prefix in prefixes:
+        hosts.extend(f"{prefix}.{i}" for i in range(1, 255))
+
+    await asyncio.gather(*[check(host) for host in hosts])
 
     devices: list[dict[str, Any]] = []
     for ip in found_ips:
@@ -170,11 +251,9 @@ async def _scan_subnet_for_roku() -> list[dict[str, Any]]:
 
 
 async def _scan_subnet_for_vidaa() -> list[dict[str, Any]]:
-    local_ip = _get_local_ip()
-    if not local_ip:
+    prefixes = _subnet_prefixes()
+    if not prefixes:
         return []
-
-    prefix = ".".join(local_ip.split(".")[:3])
     found: list[dict[str, Any]] = []
     sem = asyncio.Semaphore(50)
 
@@ -185,14 +264,74 @@ async def _scan_subnet_for_vidaa() -> list[dict[str, Any]]:
             elif await asyncio.to_thread(probe_vidaa, ip, use_ssl=False):
                 found.append({"ip": ip, "platform": "vidaa", "name": ip})
 
-    await asyncio.gather(*[check_ip(f"{prefix}.{i}") for i in range(1, 255)])
+    hosts = [f"{prefix}.{i}" for prefix in prefixes for i in range(1, 255)]
+    await asyncio.gather(*[check_ip(host) for host in hosts])
     return found
 
 
 def _get_local_ip() -> str | None:
+    ips = _get_local_ips()
+    return ips[0] if ips else None
+
+
+def _subnet_prefix(ip: str) -> str | None:
+    parts = ip.split(".")
+    if len(parts) != 4:
+        return None
+    try:
+        if not all(0 <= int(p) <= 255 for p in parts):
+            return None
+    except ValueError:
+        return None
+    return ".".join(parts[:3])
+
+
+def _get_local_ips() -> list[str]:
+    """Collect LAN IPs — VPN or multi-NIC setups can make a single 8.8.8.8 route wrong."""
+    seen: set[str] = set()
+    ordered: list[str] = []
+
+    def add(ip: str) -> None:
+        if not ip or ip.startswith("127.") or ip in seen:
+            return
+        seen.add(ip)
+        ordered.append(ip)
+
     try:
         with socket.socket(socket.AF_INET, socket.SOCK_DGRAM) as s:
             s.connect(("8.8.8.8", 80))
-            return s.getsockname()[0]
+            add(s.getsockname()[0])
     except OSError:
-        return None
+        pass
+
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            add(info[4][0])
+    except OSError:
+        pass
+
+    return ordered
+
+
+def _subnet_prefixes() -> list[str]:
+    """Unique /24 prefixes to scan (local NICs + saved TV + common home LANs)."""
+    prefixes: list[str] = []
+    seen: set[str] = set()
+
+    def add_prefix(ip_or_prefix: str | None) -> None:
+        if not ip_or_prefix:
+            return
+        if re.match(r"^\d+\.\d+\.\d+$", ip_or_prefix):
+            prefix = ip_or_prefix
+        else:
+            prefix = _subnet_prefix(ip_or_prefix)
+        if prefix and prefix not in seen:
+            seen.add(prefix)
+            prefixes.append(prefix)
+
+    for ip in _get_local_ips():
+        add_prefix(ip)
+    add_prefix(_load_saved_roku_host())
+    for prefix in COMMON_SUBNETS:
+        add_prefix(prefix)
+    return prefixes

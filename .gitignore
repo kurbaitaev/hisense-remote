@@ -3,6 +3,10 @@
 __pycache__/
 *.pyc
 config.json
+data/test_results.json
 certs/
 dist/*.zip
 .DS_Store
+.cursor-grok-context.md
+*.log
+/tmp/

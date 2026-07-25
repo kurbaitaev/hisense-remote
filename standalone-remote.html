@@ -1,0 +1,183 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="TV Remote">
+<meta name="theme-color" content="#0a0a0f">
+<title>TV Remote</title>
+<style>
+:root{--bg:#0a0a0f;--surface:#14141f;--surface-2:#1c1c2a;--border:#2a2a3d;--text:#f0f0f5;--muted:#8888a0;--accent:#00b4d8;--danger:#ff4757;--r:14px}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+body{font-family:system-ui,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh}
+.app{max-width:420px;margin:0 auto;padding:calc(12px + env(safe-area-inset-top)) 16px calc(12px + env(safe-area-inset-bottom))}
+.hidden{display:none!important}
+h1{font-size:1.1rem;font-weight:600}
+.status{font-size:.8rem;color:var(--muted);margin-top:4px}
+.status.ok{color:#4ade80}
+.card{background:var(--surface);border:1px solid var(--border);border-radius:var(--r);padding:16px;margin-bottom:16px}
+label{display:block;font-size:.75rem;color:var(--muted);margin-bottom:6px;text-transform:uppercase;letter-spacing:.04em}
+.row{display:flex;gap:8px}
+input{flex:1;padding:12px;border-radius:10px;border:1px solid var(--border);background:var(--surface-2);color:var(--text);font-size:1rem}
+button{font-family:inherit;cursor:pointer;border:none;border-radius:10px;font-weight:600}
+.btn{padding:12px 16px;background:var(--accent);color:#000}
+.btn2{padding:12px;background:var(--surface-2);color:var(--text);border:1px solid var(--border)}
+.err{color:#ff6b6b;font-size:.82rem;margin-top:8px}
+.top{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.vol{display:flex;align-items:center;justify-content:center;gap:16px;margin-bottom:16px}
+.vol span{font-size:.75rem;color:var(--muted);text-transform:uppercase}
+.dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,64px);gap:8px;max-width:240px;margin:0 auto 16px}
+.dpad .k{grid-column:2;grid-row:1}
+.dpad .l{grid-column:1;grid-row:2}
+.dpad .o{grid-column:2;grid-row:2;background:var(--accent);color:#000;font-weight:700}
+.dpad .r{grid-column:3;grid-row:2}
+.dpad .d{grid-column:2;grid-row:3}
+.media,.apps{display:grid;grid-template-columns:repeat(4,1fr);gap:8px;margin-bottom:12px}
+.apps{grid-template-columns:repeat(3,1fr)}
+.k,.key-app{padding:14px 0;background:var(--surface-2);border:1px solid var(--border);border-radius:12px;color:var(--text);font-size:1rem}
+.key-app{font-size:.72rem}
+.k.power{color:var(--danger)}
+.k.pressed,.key-app.pressed{transform:scale(.94);opacity:.85}
+.play-row{display:flex;gap:8px;margin-bottom:8px}
+.play-row input{flex:1}
+.hint{font-size:.75rem;color:var(--muted);line-height:1.4}
+.toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;transform:translateX(-50%);background:#222;color:#fff;padding:10px 16px;border-radius:999px;font-size:.85rem;z-index:9}
+</style>
+</head>
+<body>
+<div class="app">
+  <h1>TV Remote</h1>
+  <p id="status" class="status">Same Wi‑Fi as TV · no server</p>
+
+  <div id="setup" class="card">
+    <label>TV IP</label>
+    <div class="row">
+      <input id="ip" inputmode="decimal" placeholder="192.168.0.154">
+      <button id="find" class="btn2" type="button">Find</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button id="go" class="btn" type="button" style="flex:1">Connect</button>
+    </div>
+    <p id="err" class="err hidden"></p>
+  </div>
+
+  <div id="remote" class="hidden">
+    <div class="card">
+      <div class="play-row">
+        <input id="play" placeholder="Play Inception…">
+        <button id="playBtn" class="btn" type="button">Go</button>
+      </div>
+      <p class="hint">Phone → TV directly. Nothing in the middle.</p>
+    </div>
+    <div class="top">
+      <button class="k power" data-k="PowerOff">⏻</button>
+      <button class="k" data-k="VolumeMute">Mute</button>
+      <button class="k" data-k="Home">Home</button>
+      <button class="k" data-k="Back">Back</button>
+    </div>
+    <div class="vol">
+      <button class="k" data-k="VolumeDown">−</button>
+      <span>Vol</span>
+      <button class="k" data-k="VolumeUp">+</button>
+    </div>
+    <div class="dpad">
+      <button class="k" data-k="Up">▲</button>
+      <button class="k l" data-k="Left">◀</button>
+      <button class="k o" data-k="Select">OK</button>
+      <button class="k r" data-k="Right">▶</button>
+      <button class="k d" data-k="Down">▼</button>
+    </div>
+    <div class="media">
+      <button class="k" data-k="Rev">⏪</button>
+      <button class="k" data-k="Play">▶</button>
+      <button class="k" data-k="Pause">⏸</button>
+      <button class="k" data-k="Fwd">⏩</button>
+    </div>
+    <div class="apps">
+      <button class="key-app" data-app="12">Netflix</button>
+      <button class="key-app" data-app="837">YouTube</button>
+      <button class="key-app" data-app="31440">Paramount</button>
+    </div>
+  </div>
+</div>
+<div id="toast" class="toast hidden"></div>
+<script>
+const KEY="tv-ip";
+let tv="";
+const $=id=>document.getElementById(id);
+const base=ip=>`http://${ip}:8060`;
+function toast(m){const t=$("toast");t.textContent=m;t.classList.remove("hidden");setTimeout(()=>t.classList.add("hidden"),2000)}
+function err(m){const e=$("err");e.textContent=m;e.classList.remove("hidden")}
+async function probe(ip){
+  try{
+    const r=await fetch(`${base(ip)}/query/device-info`,{signal:AbortSignal.timeout(3000)});
+    if(!r.ok)return null;
+    const x=await r.text();
+    const name=(x.match(/<friendly-device-name>([^<]+)/)||x.match(/<model-name>([^<]+)/)||[])[1]||ip;
+    return{name,ip};
+  }catch{return null}
+}
+async function scan(){
+  const saved=localStorage.getItem(KEY)||"192.168.0.154";
+  const pre=saved.split(".").slice(0,3).join(".");
+  for(let b=1;b<255;b+=40){
+    const ps=[];
+    for(let i=b;i<b+40&&i<255;i++)ps.push(probe(`${pre}.${i}`).then(h=>h));
+    const rs=await Promise.all(ps);
+    const hit=rs.find(Boolean);
+    if(hit)return hit;
+  }
+  return null;
+}
+async function post(ip,path,ms=4000){
+  const c=new AbortController();
+  const t=setTimeout(()=>c.abort(),ms);
+  try{return await fetch(`${base(ip)}${path}`,{method:"POST",signal:c.signal})}
+  finally{clearTimeout(t)}
+}
+async function connect(ip){
+  $("err").classList.add("hidden");
+  const hit=await probe(ip);
+  if(!hit){err(`No TV at ${ip}. Settings → Network → About.`);return}
+  tv=ip;localStorage.setItem(KEY,ip);
+  $("status").textContent=`${hit.name} · ${ip}`;
+  $("status").classList.add("ok");
+  $("setup").classList.add("hidden");
+  $("remote").classList.remove("hidden");
+}
+document.querySelectorAll("[data-k]").forEach(b=>{
+  b.onclick=async()=>{
+    if(!tv)return;
+    b.classList.add("pressed");setTimeout(()=>b.classList.remove("pressed"),100);
+    try{
+      const r=await post(tv,`/keypress/${b.dataset.k}`);
+      if(r.status===403)toast("Enable Control by mobile apps on TV");
+    }catch{toast("Failed — same Wi‑Fi?")}
+  };
+});
+document.querySelectorAll("[data-app]").forEach(b=>{
+  b.onclick=async()=>{
+    if(!tv)return;
+    try{await post(tv,`/launch/${b.dataset.app}`)}catch{toast("Launch failed")}
+  };
+});
+$("go").onclick=()=>connect($("ip").value.trim());
+$("find").onclick=async()=>{
+  $("find").disabled=true;$("find").textContent="…";
+  const hit=await scan();
+  $("find").disabled=false;$("find").textContent="Find";
+  if(hit){$("ip").value=hit.ip;await connect(hit.ip)}else err("Not found — enter IP manually");
+};
+$("playBtn").onclick=async()=>{
+  const t=$("play").value.trim();if(!t||!tv)return;
+  toast(`Playing ${t}…`);
+  try{
+    await post(tv,`/search/browse?title=${encodeURIComponent(t)}&provider-id=12,13,31440&launch=true&match-any=true`,12000);
+  }catch{toast("Failed")}
+};
+const saved=localStorage.getItem(KEY);
+if(saved){$("ip").value=saved;connect(saved)}
+</script>
+</body>
+</html>

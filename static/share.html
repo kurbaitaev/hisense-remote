@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>Share remote with friends</title>
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .share-page { max-width: 420px; margin: 0 auto; padding: 20px 16px 40px; }
+    .share-page h1 { font-size: 1.35rem; margin-bottom: 6px; }
+    .lead { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 18px; }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      padding: 16px;
+      margin-bottom: 14px;
+    }
+    .card h2 { font-size: 1rem; margin-bottom: 8px; }
+    .card p, .card li { color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; }
+    .card ol { padding-left: 18px; margin: 10px 0; }
+    .card code {
+      font-size: 0.78rem;
+      background: var(--surface-2);
+      padding: 2px 6px;
+      border-radius: 6px;
+    }
+    .highlight {
+      border-color: rgba(0, 180, 216, 0.4);
+      background: rgba(0, 180, 216, 0.06);
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      margin-top: 10px;
+      padding: 12px;
+      border: none;
+      border-radius: var(--radius-sm);
+      font-family: inherit;
+      font-weight: 600;
+      font-size: 0.9rem;
+      cursor: pointer;
+      background: var(--accent);
+      color: #041018;
+      text-align: center;
+      text-decoration: none;
+    }
+    .btn.ghost {
+      background: transparent;
+      border: 1px solid var(--border);
+      color: var(--text);
+    }
+    .back-link {
+      display: inline-block;
+      color: var(--accent);
+      text-decoration: none;
+      font-size: 0.9rem;
+      margin-bottom: 14px;
+    }
+    .pre {
+      background: var(--surface-2);
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px;
+      font-size: 0.75rem;
+      font-family: ui-monospace, monospace;
+      line-height: 1.5;
+      overflow-x: auto;
+      white-space: pre-wrap;
+      margin-top: 10px;
+      color: var(--text);
+    }
+    .msg { font-size: 0.8rem; color: #6bcb77; margin-top: 8px; min-height: 1.2em; }
+  </style>
+</head>
+<body>
+  <div class="share-page">
+    <a class="back-link" href="/">← Back</a>
+    <h1>Share with friends</h1>
+    <p class="lead">
+      Each friend controls <strong>their own TV</strong> at home.
+      Not yours. Phone → their Roku on their Wi‑Fi.
+    </p>
+
+    <div class="card highlight">
+      <h2>How it works</h2>
+      <p>
+        You publish a free web page once. They open it, enter (or auto-find)
+        <em>their</em> TV IP, and use the remote. No account. No your Mac.
+      </p>
+    </div>
+
+    <div class="card">
+      <h2>1. Deploy the public page (you, once)</h2>
+      <p>Only the <code>web/</code> folder is needed. On your Mac:</p>
+      <div class="pre" id="deploy-cmd">cd ~/hisense-remote
+npx wrangler pages deploy web --project-name=roku-remote</div>
+      <button type="button" class="btn" id="copy-deploy">Copy deploy command</button>
+      <p style="margin-top:12px">
+        Or push to GitHub → Cloudflare Pages / GitHub Pages with
+        <strong>build output = <code>web</code></strong>.
+        Full steps: <code>SHARE.md</code> in the repo.
+      </p>
+      <p class="msg" id="copy-msg"></p>
+    </div>
+
+    <div class="card">
+      <h2>2. Text this to friends</h2>
+      <div class="pre" id="friend-msg">Open this on your phone (same Wi‑Fi as your TV):
+
+https://YOUR-SITE.pages.dev
+
+1. Allow Local Network if asked
+2. On TV: Settings → System → Advanced → Control by mobile apps → Enabled
+3. Connect, then use the remote (Add to Home Screen optional)</div>
+      <button type="button" class="btn" id="copy-msg-btn">Copy friend message</button>
+      <p style="margin-top:10px">
+        Replace <code>YOUR-SITE.pages.dev</code> with the URL Cloudflare/GitHub gives you.
+      </p>
+      <p class="msg" id="copy-msg-2"></p>
+    </div>
+
+    <div class="card">
+      <h2>3. Preview the friend app (this network only)</h2>
+      <p>
+        Opens the same phone→TV remote. For a real share link, deploy step 1 —
+        this local URL only works near your Mac.
+      </p>
+      <a class="btn ghost" href="/static/friend-remote.html">Open friend remote (local demo)</a>
+      <a class="btn ghost" href="/direct" style="margin-top:8px">Or Direct mode</a>
+    </div>
+
+    <div class="card">
+      <h2>What they need</h2>
+      <ol>
+        <li>Roku or Hisense Roku TV</li>
+        <li>Phone on the <strong>same Wi‑Fi as their TV</strong></li>
+        <li>Control by mobile apps → <strong>Enabled</strong></li>
+      </ol>
+    </div>
+  </div>
+  <script>
+    function copy(text, elId) {
+      navigator.clipboard.writeText(text).then(() => {
+        const el = document.getElementById(elId);
+        el.textContent = "Copied";
+        setTimeout(() => { el.textContent = ""; }, 2000);
+      });
+    }
+    document.getElementById("copy-deploy").onclick = () =>
+      copy(document.getElementById("deploy-cmd").textContent, "copy-msg");
+    document.getElementById("copy-msg-btn").onclick = () =>
+      copy(document.getElementById("friend-msg").textContent, "copy-msg-2");
+  </script>
+</body>
+</html>

@@ -1,0 +1,109 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-title" content="Roku Direct">
+  <meta name="theme-color" content="#0a0a0f">
+  <title>Roku Direct</title>
+  <link rel="manifest" href="/static/manifest-direct.webmanifest">
+  <link rel="apple-touch-icon" href="/static/icons/icon-192.svg">
+  <link rel="stylesheet" href="/static/style.css">
+  <style>
+    .direct-badge {
+      font-size: 0.65rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #4ade80;
+      background: rgba(74, 222, 128, 0.12);
+      border: 1px solid rgba(74, 222, 128, 0.35);
+      border-radius: 999px;
+      padding: 3px 8px;
+    }
+    .warn-box {
+      background: rgba(255, 180, 0, 0.12);
+      border: 1px solid rgba(255, 180, 0, 0.35);
+      color: #ffd666;
+      padding: 12px;
+      border-radius: 10px;
+      font-size: 0.82rem;
+      line-height: 1.45;
+      margin-bottom: 14px;
+    }
+    .direct-connect { margin-bottom: 12px; }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <header class="header">
+      <div class="brand">
+        <div class="brand-icon" aria-hidden="true">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5">
+            <rect x="2" y="5" width="20" height="14" rx="2"/><path d="M8 19h8"/>
+          </svg>
+        </div>
+        <div>
+          <h1>Roku Direct <span class="direct-badge">no server</span></h1>
+          <p id="status" class="status">Enter TV IP</p>
+        </div>
+      </div>
+    </header>
+
+    <div id="https-warn" class="warn-box hidden"></div>
+
+    <div id="connect-panel" class="setup-card direct-connect">
+      <label for="tv-ip-direct">TV IP</label>
+      <div class="input-row">
+        <input id="tv-ip-direct" type="text" inputmode="decimal" placeholder="192.168.0.154" autocomplete="off">
+        <button id="scan-direct" class="btn-secondary" type="button">Find</button>
+      </div>
+      <button id="connect-direct" class="btn-primary" type="button">Connect direct</button>
+      <p id="connect-error" class="error hidden"></p>
+    </div>
+
+    <main id="remote" class="remote hidden">
+      <section class="voice-panel">
+        <form id="play-form" class="voice-form">
+          <input id="play-input" type="text" placeholder="Play Inception…" autocomplete="off" enterkeyhint="go">
+          <button class="voice-send" type="submit">Play</button>
+        </form>
+        <p class="voice-hint">Sends search/play straight to the TV — no Mac or Pi.</p>
+      </section>
+
+      <section class="top-row">
+        <button class="key key-power" data-key="power">⏻</button>
+        <button class="key" data-key="mute">Mute</button>
+        <button class="key key-home" data-key="home">Home</button>
+        <button class="key" data-key="back">Back</button>
+      </section>
+      <section class="volume-row">
+        <button class="key key-round" data-key="volume_down">−</button>
+        <span class="label">Volume</span>
+        <button class="key key-round" data-key="volume_up">+</button>
+      </section>
+      <section class="dpad">
+        <button class="key dpad-btn dpad-up" data-key="up">▲</button>
+        <button class="key dpad-btn dpad-left" data-key="left">◀</button>
+        <button class="key dpad-btn dpad-ok" data-key="ok">OK</button>
+        <button class="key dpad-btn dpad-right" data-key="right">▶</button>
+        <button class="key dpad-btn dpad-down" data-key="down">▼</button>
+      </section>
+      <section class="media-row">
+        <button class="key" data-key="rewind">⏪</button>
+        <button class="key" data-key="play">▶</button>
+        <button class="key" data-key="pause">⏸</button>
+        <button class="key" data-key="fast_forward">⏩</button>
+      </section>
+      <section class="apps-row">
+        <button class="key key-app" data-app="netflix">Netflix</button>
+        <button class="key key-app" data-app="youtube">YouTube</button>
+        <button class="key key-app" data-app="paramount">Paramount</button>
+      </section>
+    </main>
+  </div>
+  <div id="toast" class="toast hidden"></div>
+  <script type="module" src="/static/direct-app.js?v=1"></script>
+</body>
+</html>
