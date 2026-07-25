@@ -477,6 +477,22 @@ details summary::-webkit-details-marker { display: none; }
 }
 .sheet ol { margin: 0 0 14px 18px; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
 .sheet ol strong { color: var(--text); }
+.numpad {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+.numpad button {
+  padding: 16px 0;
+  font-size: 1.25rem;
+  font-weight: 600;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  color: var(--text);
+}
+.numpad button:active { background: var(--surface-2); transform: scale(0.96); }
+.numpad button.muted { color: var(--muted); font-size: 1rem; }
 </style>
 </head>
 <body>
@@ -509,73 +525,85 @@ details summary::-webkit-details-marker { display: none; }
       <ul class="steps">
         <li><span class="n">1</span><span>Phone on the <em>same Wi‑Fi</em> as your TV</span></li>
         <li><span class="n">2</span><span>TV: Settings → System → Advanced → <em>Control by mobile apps → Enabled</em></span></li>
-        <li><span class="n">3</span><span><em>Allow Local Network</em>, then scan for your TV</span></li>
+        <li><span class="n">3</span><span>Connect using the TV’s IP (scan when your browser allows it)</span></li>
       </ul>
     </div>
 
-    <!-- Step A: force Local Network permission -->
-    <div class="perm-card" id="perm-card">
-      <h2>1. Allow Local Network</h2>
+    <!-- PRIMARY: works on iPhone Safari — no auto-scan needed -->
+    <div class="perm-card" id="connect-card">
+      <h2>Connect to your TV</h2>
       <p>
-        Your phone must allow this site to look for TVs on Wi‑Fi.
-        Tap the button — if a popup appears, choose <strong style="color:var(--text)">Allow</strong>.
+        On the TV remote open<br>
+        <strong style="color:var(--text)">Settings → Network → About</strong><br>
+        Find <strong style="color:var(--text)">IP address</strong> (example: 192.168.0.<strong style="color:var(--accent)">154</strong>).
+        Type the <strong style="color:var(--text)">last number</strong> only:
       </p>
-      <button type="button" class="btn-allow" id="allow-net-btn">Allow Local Network access</button>
-      <div id="perm-status" class="perm-status wait hidden"></div>
-      <div class="how-box" id="how-ios">
-        <strong>If no popup appears (iPhone):</strong>
-        <ol>
-          <li>Open the iPhone <strong>Settings</strong> app</li>
-          <li>Scroll to <strong>Privacy &amp; Security</strong> → <strong>Local Network</strong></li>
-          <li>Turn <strong>on</strong> the switch for <strong>Safari</strong> (or <strong>TV Remote</strong> if you added it to Home Screen)</li>
-          <li>Come back here and tap the button again, then <strong>Scan for TVs</strong></li>
-        </ol>
-        <p style="margin-top:10px;margin-bottom:0">
-          <strong>Android / Chrome:</strong> when the banner asks for local network / nearby devices, tap <strong>Allow</strong>.
-        </p>
-      </div>
-    </div>
-
-    <!-- Step B: scan -->
-    <div class="card" id="scan-card">
-      <h2 style="font-size:1rem;margin-bottom:8px">2. Find your TV</h2>
-      <p id="scan-msg" class="scan">Tap “Allow Local Network” above first, then scan.</p>
-      <div id="tv-list" class="tv-list hidden"></div>
-      <button id="scan-btn" class="btn" type="button" style="width:100%;margin-top:4px">Scan for TVs</button>
-      <p class="hint" style="margin-top:12px;margin-bottom:8px">Or type the last number of the TV IP (Settings → Network → About):</p>
-      <div class="row" id="octet-row">
+      <div class="row" id="octet-row" style="margin-bottom:10px">
         <span id="net-prefix" class="net-prefix">192.168.0.</span>
-        <input id="octet" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="154" autocomplete="off" enterkeyhint="go" style="max-width:88px;text-align:center">
-        <button id="go-octet" class="btn2" type="button">Connect</button>
+        <input id="octet" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="154" autocomplete="off" enterkeyhint="go" style="max-width:96px;text-align:center;font-size:1.2rem;font-weight:700">
       </div>
+      <div class="numpad" id="numpad">
+        <button type="button" data-n="1">1</button>
+        <button type="button" data-n="2">2</button>
+        <button type="button" data-n="3">3</button>
+        <button type="button" data-n="4">4</button>
+        <button type="button" data-n="5">5</button>
+        <button type="button" data-n="6">6</button>
+        <button type="button" data-n="7">7</button>
+        <button type="button" data-n="8">8</button>
+        <button type="button" data-n="9">9</button>
+        <button type="button" data-n="clear" class="muted">C</button>
+        <button type="button" data-n="0">0</button>
+        <button type="button" data-n="del" class="muted">⌫</button>
+      </div>
+      <button type="button" class="btn-allow" id="go-octet" style="margin-top:12px">Connect</button>
+      <p class="hint" id="prefix-hint" style="margin-top:10px;margin-bottom:0">
+        Detecting your Wi‑Fi address…
+      </p>
       <details style="margin-top:12px">
-        <summary class="hint" style="cursor:pointer">Full IP address</summary>
-        <div class="row" style="margin-top:8px" id="manual-row">
-          <input id="ip" inputmode="decimal" placeholder="e.g. 192.168.0.154" autocomplete="off" enterkeyhint="go">
-          <button id="go" class="btn2" type="button">Connect</button>
+        <summary class="hint" style="cursor:pointer">Wrong network prefix? Enter full IP</summary>
+        <div class="row" style="margin-top:8px">
+          <input id="ip" inputmode="decimal" placeholder="192.168.0.154" autocomplete="off" enterkeyhint="go">
+          <button id="go" class="btn2" type="button">Go</button>
         </div>
       </details>
+    </div>
+
+    <!-- SECONDARY: auto-scan (Chrome / Android works better than iPhone Safari) -->
+    <div class="card" id="scan-card">
+      <h2 style="font-size:1rem;margin-bottom:8px">Try auto-find (optional)</h2>
+      <p class="hint" style="margin-bottom:10px">
+        Some phones can search the Wi‑Fi for Rokus. iPhone Safari often blocks this —
+        if scan finds nothing, use <strong style="color:var(--text)">Connect</strong> above (that always works).
+      </p>
+      <button type="button" class="btn-allow" id="allow-net-btn" style="background:var(--surface-2);color:var(--text);border:1px solid var(--border)">1. Allow Local Network</button>
+      <button id="scan-btn" class="btn" type="button" style="width:100%;margin-top:8px">2. Scan for TVs</button>
+      <div id="perm-status" class="perm-status wait hidden"></div>
+      <p id="scan-msg" class="scan" style="margin-top:10px">Ready to scan</p>
+      <div id="tv-list" class="tv-list hidden"></div>
+      <div class="how-box" id="how-ios">
+        <strong>iPhone — enable Local Network (required for scan):</strong>
+        <ol>
+          <li>Open the <strong>Settings</strong> app (grey gear)</li>
+          <li><strong>Privacy &amp; Security</strong> → <strong>Local Network</strong></li>
+          <li>Turn <strong>ON</strong> for <strong>Safari</strong> (or <strong>TV Remote</strong> if on Home Screen)</li>
+          <li>Return here → Allow Local Network → Scan</li>
+        </ol>
+      </div>
       <p id="err" class="err hidden"></p>
     </div>
   </div>
 
-  <!-- Popup coach overlay while requesting permission -->
   <div id="perm-overlay" class="overlay hidden" role="dialog" aria-modal="true">
     <div class="sheet">
-      <h3>Look at the top of your screen</h3>
+      <h3>Look for a popup</h3>
       <div class="popup-hint">
-        If you see a popup about<br>
-        “Local Network” or “devices on your network”<br>
+        If you see “Local Network” or “devices on your network”<br>
         → tap <strong>Allow</strong>
       </div>
-      <p>Don’t see a popup? Follow these steps, then close this.</p>
-      <ol>
-        <li><strong>iPhone:</strong> Settings → Privacy &amp; Security → <strong>Local Network</strong> → turn on <strong>Safari</strong> or <strong>TV Remote</strong></li>
-        <li><strong>Android:</strong> when Chrome asks for nearby devices / local network → Allow</li>
-        <li>Come back and tap <strong>Scan for TVs</strong></li>
-      </ol>
-      <button type="button" class="btn" id="overlay-done" style="width:100%">I allowed it — continue</button>
-      <button type="button" class="btn2" id="overlay-skip" style="width:100%;margin-top:8px">Skip — enter IP manually</button>
+      <p>No popup? Use Settings → Privacy &amp; Security → Local Network (steps on the page), or connect with the TV IP number instead.</p>
+      <button type="button" class="btn" id="overlay-done" style="width:100%">I allowed it — scan now</button>
+      <button type="button" class="btn2" id="overlay-skip" style="width:100%;margin-top:8px">Use IP number instead</button>
     </div>
   </div>
 
@@ -671,6 +699,11 @@ function setPrefixLabel(prefix) {
   detectedPrefix = prefix;
   const el = $("net-prefix");
   if (el) el.textContent = prefix + ".";
+  const hint = $("prefix-hint");
+  if (hint) {
+    hint.textContent =
+      `Your phone’s Wi‑Fi is ${prefix}.x — enter the last number from the TV’s IP.`;
+  }
 }
 
 function abortSignal(ms) {
@@ -869,43 +902,55 @@ function ecpPost(ip, path, ms = 5000) {
   });
 }
 
+/** WebSocket open to :8060 — alternate signal something is listening. */
+function probeWs(ip, ms = PROBE_MS) {
+  return new Promise((resolve) => {
+    let settled = false;
+    const done = (ok) => {
+      if (settled) return;
+      settled = true;
+      try { ws.close(); } catch {}
+      resolve(ok);
+    };
+    let ws;
+    try {
+      // Any TCP accept on 8060 is a strong Roku signal
+      ws = new WebSocket(`ws://${ip}:8060/`);
+      ws.onopen = () => done(true);
+      ws.onerror = () => done(false);
+      ws.onclose = () => done(false);
+      setTimeout(() => done(false), ms);
+    } catch {
+      done(false);
+    }
+  });
+}
+
 /**
- * Detect a Roku-like device at IP.
- * Roku has no CORS headers — we only need to know port 8060 answers (no-cors).
+ * Detect device at IP.
+ * Roku has no CORS — we never rely on reading the XML body.
+ * Methods: no-cors HTTP, WebSocket (whichever the browser allows).
  */
 async function probe(ip) {
+  // Method A: no-cors HTTP (Chrome LNA / Android)
   try {
-    // no-cors: resolves if TCP/HTTP answers; throws on timeout / blocked / refused
     await lanFetch(`${base(ip)}/query/device-info`, PROBE_MS);
-    // Optional: try readable CORS (almost always fails on Roku — ignore)
-    let name = "Roku TV";
-    try {
-      const r = await fetch(`${base(ip)}/query/device-info`, {
-        mode: "cors",
-        cache: "no-store",
-        signal: abortSignal(400),
-        ...(https ? { targetAddressSpace: "local" } : {}),
-      });
-      if (r.ok) {
-        const x = await r.text();
-        name =
-          (x.match(/<friendly-device-name>([^<]+)/) ||
-            x.match(/<user-device-name>([^<]+)/) ||
-            x.match(/<model-name>([^<]+)/) ||
-            [])[1] || name;
-      }
-    } catch {
-      /* no CORS — fine */
-    }
-    return { name: String(name).trim(), ip };
+    return { name: "Roku TV", ip };
   } catch (err) {
-    // If the browser blocks all LAN access, mark it once for better error text
     const msg = String(err && err.message || err || "");
     if (/Failed to fetch|NetworkError|Load failed|blocked|Local Network/i.test(msg)) {
       lanBlocked = true;
     }
-    return null;
   }
+  // Method B: WebSocket (some browsers treat this differently)
+  try {
+    if (await probeWs(ip, PROBE_MS)) {
+      return { name: "Roku TV", ip };
+    }
+  } catch {
+    /* ignore */
+  }
+  return null;
 }
 
 function renderTvList(list) {
@@ -931,7 +976,20 @@ function renderTvList(list) {
   });
 }
 
-/** Scan /24 subnets for anything answering on Roku ECP port 8060. */
+/** Common last octets first (home routers assign these often), then full range. */
+function octetOrder() {
+  const priority = [
+    100, 101, 102, 150, 151, 152, 153, 154, 155, 160, 170, 180, 200,
+    10, 20, 30, 50, 60, 70, 80, 90, 110, 120, 130, 140, 2, 3, 4, 5, 6, 7, 8, 9, 1, 254,
+  ];
+  const rest = [];
+  for (let i = 1; i < 255; i++) {
+    if (!priority.includes(i)) rest.push(i);
+  }
+  return [...priority, ...rest];
+}
+
+/** Scan phone's Wi‑Fi subnet only (full multi-subnet scans get blocked on phones). */
 async function scanNetwork() {
   if (scanning) return [];
   scanning = true;
@@ -948,43 +1006,39 @@ async function scanNetwork() {
     seen.add(hit.ip);
     found.push(hit);
     renderTvList(found);
-    setScanMsg(`Found ${found.length} TV${found.length > 1 ? "s" : ""}…`, true);
+    setScanMsg(`Found ${found.length} TV${found.length > 1 ? "s" : ""} — tap to connect`, true);
   };
 
   setScanMsg("Detecting your Wi‑Fi…", true);
-  let prefixes = await localSubnets();
+  const prefixes = await localSubnets();
+  const pre = prefixes[0] || detectedPrefix;
+  setPrefixLabel(pre);
+  $("prefix-hint").textContent = `Your Wi‑Fi looks like ${pre}.x — use the number pad above if scan fails.`;
 
   const saved = localStorage.getItem(KEY);
   if (saved) {
-    prefixes = [saved.split(".").slice(0, 3).join("."), ...prefixes];
     setScanMsg(`Checking saved TV ${saved}…`, true);
     add(await probe(saved));
   }
-  prefixes = [...new Set(prefixes)];
-  if (prefixes[0]) setPrefixLabel(prefixes[0]);
 
-  // Prefer the phone's own subnet first (first WebRTC prefix)
-  for (const pre of prefixes) {
-    setPrefixLabel(pre);
-    setScanMsg(`Scanning ${pre}.1–254…`, true);
-    for (let start = 1; start < 255; start += BATCH) {
-      const jobs = [];
-      for (let i = start; i < start + BATCH && i < 255; i++) {
-        jobs.push(probe(`${pre}.${i}`).then(add));
-      }
-      await Promise.all(jobs);
-      if (found.length) {
-        // Keep scanning current subnet so we list every TV, then stop other subnets
-      }
-      const pct = Math.min(100, Math.round(((start + BATCH) / 254) * 100));
-      setScanMsg(
-        `Scanning ${pre}.x … ${pct}%` +
-          (found.length ? ` · ${found.length} found` : ""),
-        true,
-      );
-    }
-    // If we found TVs on this subnet, skip remaining common prefixes (faster)
-    if (found.length) break;
+  // One test probe to detect total browser block early
+  setScanMsg("Testing Local Network access…", true);
+  const test = await probe(`${pre}.1`);
+  if (!test && lanBlocked) {
+    // Still try a few common ends before giving up
+  }
+
+  const order = octetOrder();
+  const BATCH_N = 20;
+  for (let i = 0; i < order.length; i += BATCH_N) {
+    const slice = order.slice(i, i + BATCH_N);
+    setScanMsg(
+      `Scanning ${pre}.x … ${Math.min(100, Math.round((i / order.length) * 100))}%` +
+        (found.length ? ` · ${found.length} found` : ""),
+      true,
+    );
+    await Promise.all(slice.map((n) => probe(`${pre}.${n}`).then(add)));
+    if (found.length >= 3) break; // enough options
   }
 
   scanning = false;
@@ -995,19 +1049,11 @@ async function scanNetwork() {
   } else if (found.length > 1) {
     setScanMsg(`Found ${found.length} TVs — tap one to connect`);
   } else {
-    setScanMsg("No Roku found automatically.");
-    const tip =
-      `On the TV: Settings → Network → About → note the IP (ends with a number). ` +
-      `Type that last number above (network ${detectedPrefix}.___).`;
-    if (lanBlocked || https) {
-      showErr(
-        "This site needs Local Network access to scan. " +
-          "On iPhone: Settings → Safari (or the app) → Local Network → allow for this site, then Scan again. " +
-          tip,
-      );
-    } else {
-      showErr("Same Wi‑Fi as the TV? Enable Control by mobile apps. " + tip);
-    }
+    setScanMsg("Auto-scan couldn’t find a TV on this phone/browser.");
+    showErr(
+      "That’s OK — use Connect above. On the TV: Settings → Network → About → type the last number of the IP (e.g. 154). " +
+        "iPhone often blocks Wi‑Fi scanning from websites; the number pad always works.",
+    );
   }
   return found;
 }
@@ -1083,20 +1129,15 @@ document.querySelectorAll("[data-app]").forEach((b) => {
 });
 
 async function connectRaw(ip) {
+  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) {
+    showErr("Enter a valid IP like 192.168.0.154");
+    return;
+  }
   clearErr();
   setScanMsg("Connecting…", true);
+  // Always connect — remote keys use form POST and work even when probe/scan is blocked
   const hit = await probe(ip);
-  if (hit) {
-    await connect(hit.ip, hit.name);
-    return;
-  }
-  // Keys still work via form-POST even when probe is blocked — allow manual connect
-  if (https || lanBlocked) {
-    await connect(ip, "Roku TV");
-    return;
-  }
-  showErr(`No Roku at ${ip}. Check Wi‑Fi and Control by mobile apps.`);
-  setScanMsg("Could not verify that IP.");
+  await connect(ip, hit ? hit.name : "Roku TV");
 }
 
 $("go").onclick = () => {
@@ -1114,8 +1155,24 @@ $("go-octet").onclick = () => {
 $("octet").addEventListener("keydown", (e) => {
   if (e.key === "Enter") $("go-octet").click();
 });
+
+// Number pad for last IP octet
+document.querySelectorAll("#numpad [data-n]").forEach((b) => {
+  b.onclick = () => {
+    const n = b.dataset.n;
+    const input = $("octet");
+    if (n === "clear") {
+      input.value = "";
+    } else if (n === "del") {
+      input.value = input.value.slice(0, -1);
+    } else if (input.value.length < 3) {
+      input.value += n;
+    }
+    if (navigator.vibrate) navigator.vibrate(6);
+  };
+});
+
 $("scan-btn").onclick = async () => {
-  // Always re-request access on scan (user gesture → permission prompt)
   setScanMsg("Requesting Local Network access…", true);
   showOverlay(true);
   await requestLocalNetworkAccess();
@@ -1125,16 +1182,13 @@ $("scan-btn").onclick = async () => {
 $("allow-net-btn").onclick = () => onAllowNetworkClick();
 $("overlay-done").onclick = async () => {
   showOverlay(false);
-  setPermStatus("ok", "Continuing — scanning for TVs…");
+  setPermStatus("ok", "Scanning…");
   await scanNetwork();
 };
 $("overlay-skip").onclick = () => {
   showOverlay(false);
-  setPermStatus(
-    "wait",
-    "Enter the last number of the TV IP below (from Settings → Network → About).",
-  );
   $("octet").focus();
+  toast("Type the last number of the TV IP, then Connect");
 };
 
 async function doPlay() {
