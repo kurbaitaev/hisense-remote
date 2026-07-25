@@ -1,170 +1,101 @@
-# Hisense / Roku Remote
+# TV Remote — free Roku remote (no App Store)
 
-**For friends:** each person controls **their own TV** on **their Wi‑Fi**.  
-Share one free web link — see **[SHARE.md](./SHARE.md)**. No your Mac, no your TV.
+**Use it now:** [https://kurbaitaev.github.io/hisense-remote/](https://kurbaitaev.github.io/hisense-remote/)
 
-**Optional for you:** voice AI + always-on bridge on a Mac/Pi for a richer experience on *your* network.
+A free remote control for **Roku / Hisense Roku** TVs.  
+Runs in your phone browser. Talks **straight to your TV** on your home Wi‑Fi — same idea as paid App Store remotes, without paying.
+
+```
+Your phone ── same Wi‑Fi ──► Your Roku TV
+```
+
+No account. No subscription. No your neighbor’s TV — only the TV on *your* network.
 
 ---
 
-## Friend mode (share this)
+## Use it (anyone)
 
-```
-Friend's phone ──Wi‑Fi──► Friend's Roku
-```
+1. Open **[the remote](https://kurbaitaev.github.io/hisense-remote/)** on your phone  
+2. Join the **same Wi‑Fi** as your TV  
+3. On the TV (once):  
+   **Settings → System → Advanced system settings → Control by mobile apps → Enabled**  
+4. Allow **Local Network** if the browser asks  
+5. Connect (auto-find or paste IP from **Settings → Network → About**)  
+6. Optional: **Share → Add to Home Screen** for a full-screen app feel  
 
-1. Deploy `web/` once (Cloudflare Pages / GitHub Pages)  
-2. Send them the URL  
-3. They open it, connect to *their* TV, use the remote  
+### What you get
 
-Details: **[SHARE.md](./SHARE.md)** · `./scripts/share.sh`
+| | |
+|--|--|
+| D-pad, OK, Home, Back | ✅ |
+| Volume / mute / power | ✅ |
+| Play / pause / skip | ✅ |
+| Netflix, YouTube, Prime, Paramount+, Disney+, Hulu | ✅ |
+| Type a title → search & open | ✅ |
+| App Store price | **$0** |
+
+Works only on your home network (by design — your TV isn’t on the public internet).
 
 ---
 
-## Dev / voice mode (optional)
+## Share with anyone
 
-Voice-controlled remote for **Hisense Roku TVs**. Runs as a bridge on your home network (Pi, NAS, or Mac).
-
-## Features
-
-- **Play by voice** — “Play Pursuit of Happyness” → TMDB lookup → Roku `/search/browse` API → opens the app and plays (no on-screen keyboard typing)
-- **Button remote** — d-pad, volume, apps from any phone browser
-- **Auto-discovery** — finds your Roku on Wi‑Fi
-
-## Why search stopped typing garbage
-
-Blind `Lit_` keypresses hit the **on-screen keyboard** when focus isn’t in the search bar → random letters.
-
-**Fix:** use Roku’s HTTP API first:
+Send this link:
 
 ```
-POST http://<tv-ip>:8060/search/browse?title=The+Pursuit+of+Happyness&provider-id=12,13&launch=true
+https://kurbaitaev.github.io/hisense-remote/
 ```
 
-That opens Search with the title already filled — zero keyboard keys. Fallback is ECP-2 `send_text` only when the TV reports focus **in** the search field.
+Each person uses it with **their** phone and **their** TV.
 
-## Quick start (Mac / dev)
+---
+
+## For developers
+
+| Path | What it is |
+|------|------------|
+| **`web/`** | The public remote (static HTML — what GitHub Pages serves) |
+| **`static/` + `server/`** | Optional home bridge: voice, mic, smarter play on *your* LAN |
+| **[SHARE.md](./SHARE.md)** | Deploy / host your own copy of the static remote |
+
+### Run the optional voice bridge (your house only)
 
 ```bash
-git clone <repo> hisense-remote && cd hisense-remote
+git clone https://github.com/kurbaitaev/hisense-remote.git
+cd hisense-remote
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
-cp .env.example .env          # GROQ_API_KEY for mic
-cp config.example.json config.json   # set "host" to TV IP
+cp config.example.json config.json   # set "host" to your TV IP
 ./start.sh
 ```
 
-Phone (same Wi‑Fi): `https://<computer-ip>:8443`
+Phone: `https://<your-computer-ip>:8443`
 
-## Direct mode — no App Store, no always-on server
-
-App Store Roku remotes talk **phone → TV** on port 8060. You can do the same without publishing an app:
-
-1. On your phone (same Wi‑Fi), open **`http://<any-device-on-lan>:8080/direct`** — use HTTP, not HTTPS (Safari blocks HTTPS pages from calling the TV).
-2. Enter TV IP (or tap **Find** to scan the subnet).
-3. **Share → Add to Home Screen** — installs like an app.
-4. After the first visit, the page is cached. **Your Mac can be off** — buttons and “Play …” go straight to `192.168.x.x:8060`.
-
-| Mode | Server needed? | Voice mic? | Works like App Store remote? |
-|------|----------------|------------|------------------------------|
-| **Direct** (`/direct` over HTTP) | No (after one-time install) | No | Yes — d-pad, apps, search/play |
-| **Full** (`:8443` HTTPS) | Yes (Mac/Pi 24/7) | Yes (Groq) | No — phone → server → TV |
-
-**No Mac even for setup?** Ask any device on Wi‑Fi to serve the folder once (`python3 -m http.server 8080` in the project), open `/direct`, add to home screen. Or sideload a [Capacitor](https://capacitorjs.com) build via SideStore/AltStore (Apple dev account, not App Store).
-
-## Always-on deploy (recommended — not your laptop)
-
-The TV is on your LAN. The bridge must live **on the same network** 24/7 — a Pi or NAS, not a cloud VPS.
-
-### Docker on Raspberry Pi / home server
+### Update the public site after editing `web/`
 
 ```bash
-sudo apt install docker.io docker-compose-plugin
-git clone <repo> /opt/hisense-remote && cd /opt/hisense-remote
-
-# One-time: TV IP + installed apps
-sudo mkdir -p /var/lib/hisense-remote
-sudo cp config.example.json /var/lib/hisense-remote/config.json
-sudo nano /var/lib/hisense-remote/config.json   # host: 192.168.x.x
-sudo cp .env.example /var/lib/hisense-remote/.env
-
-# Edit docker-compose.yml volume to /var/lib/hisense-remote if preferred
-docker compose up -d --build
+git subtree split --prefix web -b gh-pages
+git push origin gh-pages --force
 ```
 
-Open `https://<pi-ip>:8443` from your phone.
+---
 
-### Boot on power-up (systemd)
+## TV requirement
 
-```bash
-sudo cp deploy/hisense-remote.service /etc/systemd/system/
-sudo systemctl enable --now hisense-remote
-```
+**Control by mobile apps → Enabled**  
+(Settings → System → Advanced system settings)
 
-### Remote access from anywhere (optional)
+Without that, the TV rejects remote commands (same as official apps).
 
-Cloud VPS **cannot** reach your TV. Use **Tailscale** on the Pi:
+---
 
-```bash
-curl -fsSL https://tailscale.com/install.sh | sh
-sudo tailscale up
-sudo tailscale serve --bg --https=443 http://127.0.0.1:8443
-```
+## Privacy
 
-Then open `https://<pi-tailscale-name>.ts.net` on your phone (mic works over Tailscale HTTPS).
+- The web remote stores your TV IP in **your browser** only.  
+- Commands go **phone → TV**. Nothing is sent to a central control server.  
+- GitHub Pages only hosts the HTML/JS files.
 
-## Configuration
-
-`config.json`:
-
-| Field | Purpose |
-|-------|---------|
-| `host` | Roku TV IP (Settings → Network → About) |
-| `installed_apps` | Apps on your TV: `netflix`, `prime`, `paramount`, … |
-| `home_channel_id` | Auto-filled on first connect |
-| `paramount.profile_down_presses` | `0` = OK top profile (adult); `1` = Down once if Kids is on top |
-
-## TV setup (required once)
-
-**Settings → System → Advanced system settings → Control by mobile apps → Enabled**
-
-## Example commands
-
-| Say or type | What happens |
-|-------------|--------------|
-| `Play Pursuit of Happyness` | TMDB → search/browse → play on Netflix/Prime/etc. |
-| `Watch Inception on Netflix` | Deep-link Netflix search → OK top result |
-| `Open Netflix` | Launch app |
-| `Press down 3 times` | Down × 3 |
-| `Go home` | Roku home |
-
-## API
-
-| Endpoint | Description |
-|----------|-------------|
-| `POST /api/voice` | Voice/text — play or remote keys |
-| `POST /api/voice/demo` | Search-only debug (no play keys) |
-| `GET /api/tv/ui` | Live TV state (search bar text, player, focus) |
-| `GET /api/health` | Server liveness |
-
-## Optional keys
-
-| Key | Purpose |
-|-----|---------|
-| `GROQ_API_KEY` | Mic + smarter parsing |
-| `TMDB_API_KEY` | Correct movie titles for search |
-| `GEMINI_API_KEY` | Fallback parser / agent loop |
-
-## Troubleshooting
-
-| Problem | Fix |
-|---------|-----|
-| Random letters in search | Update to latest — uses `/search/browse`, not keyboard |
-| Keys rejected | Enable *Control by mobile apps* on TV |
-| Mic dead | Use HTTPS (`:8443`) — or use Direct mode for buttons only |
-| HTTPS page can't control TV | Use **Direct mode** at `http://…:8080/direct` |
-| Server dies when Mac sleeps | Run Docker on Pi with `restart: unless-stopped` |
-| Away from home | Tailscale serve on the Pi (not cloud deploy) |
+---
 
 ## License
 

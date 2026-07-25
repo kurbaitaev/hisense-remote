@@ -4,7 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0a0a0f">
-  <title>Share remote with friends</title>
+  <title>Share free TV Remote</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <style>
@@ -19,14 +19,7 @@
       margin-bottom: 14px;
     }
     .card h2 { font-size: 1rem; margin-bottom: 8px; }
-    .card p, .card li { color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; }
-    .card ol { padding-left: 18px; margin: 10px 0; }
-    .card code {
-      font-size: 0.78rem;
-      background: var(--surface-2);
-      padding: 2px 6px;
-      border-radius: 6px;
-    }
+    .card p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; }
     .highlight {
       border-color: rgba(0, 180, 216, 0.4);
       background: rgba(0, 180, 216, 0.06);
@@ -64,95 +57,83 @@
       border: 1px solid var(--border);
       border-radius: 10px;
       padding: 12px;
-      font-size: 0.75rem;
+      font-size: 0.78rem;
       font-family: ui-monospace, monospace;
       line-height: 1.5;
-      overflow-x: auto;
       white-space: pre-wrap;
       margin-top: 10px;
       color: var(--text);
     }
     .msg { font-size: 0.8rem; color: #6bcb77; margin-top: 8px; min-height: 1.2em; }
+    .qr-wrap {
+      text-align: center;
+      margin: 12px 0 4px;
+      padding: 14px;
+      background: #fff;
+      border-radius: 12px;
+    }
+    .qr-wrap img { width: 180px; height: 180px; }
   </style>
 </head>
 <body>
   <div class="share-page">
     <a class="back-link" href="/">← Back</a>
-    <h1>Share with friends</h1>
+    <h1>Free remote for everyone</h1>
     <p class="lead">
-      Each friend controls <strong>their own TV</strong> at home.
-      Not yours. Phone → their Roku on their Wi‑Fi.
+      Not “control my TV.” Anyone opens the link, connects to
+      <strong>their</strong> Roku on <strong>their</strong> Wi‑Fi.
+      Same job as an App Store remote — free.
     </p>
 
     <div class="card highlight">
-      <h2>How it works</h2>
-      <p>
-        You publish a free web page once. They open it, enter (or auto-find)
-        <em>their</em> TV IP, and use the remote. No account. No your Mac.
-      </p>
+      <h2>Public link</h2>
+      <div class="pre" id="link">https://kurbaitaev.github.io/hisense-remote/</div>
+      <button type="button" class="btn" id="copy-link">Copy link</button>
+      <button type="button" class="btn ghost" id="sms">Text link</button>
+      <div class="qr-wrap">
+        <img id="qr" alt="QR code" width="180" height="180">
+      </div>
+      <p class="msg" id="m1"></p>
     </div>
 
     <div class="card">
-      <h2>1. Deploy the public page (you, once)</h2>
-      <p>Only the <code>web/</code> folder is needed. On your Mac:</p>
-      <div class="pre" id="deploy-cmd">cd ~/hisense-remote
-npx wrangler pages deploy web --project-name=roku-remote</div>
-      <button type="button" class="btn" id="copy-deploy">Copy deploy command</button>
-      <p style="margin-top:12px">
-        Or push to GitHub → Cloudflare Pages / GitHub Pages with
-        <strong>build output = <code>web</code></strong>.
-        Full steps: <code>SHARE.md</code> in the repo.
-      </p>
-      <p class="msg" id="copy-msg"></p>
-    </div>
-
-    <div class="card">
-      <h2>2. Text this to friends</h2>
-      <div class="pre" id="friend-msg">Open this on your phone (same Wi‑Fi as your TV):
-
+      <h2>Message to send</h2>
+      <div class="pre" id="blurb">Free Roku remote (no App Store):
 https://kurbaitaev.github.io/hisense-remote/
 
-1. Allow Local Network if asked
-2. On TV: Settings → System → Advanced → Control by mobile apps → Enabled
-3. Connect, then use the remote (Add to Home Screen optional)</div>
-      <button type="button" class="btn" id="copy-msg-btn">Copy friend message</button>
-      <p style="margin-top:10px">
-        Live link from GitHub Pages for this repo.
-      </p>
-      <p class="msg" id="copy-msg-2"></p>
+Same Wi‑Fi as your TV. On the TV:
+Settings → System → Advanced → Control by mobile apps → Enabled
+
+Open the link, connect, use the remote. Add to Home Screen if you want.</div>
+      <button type="button" class="btn" id="copy-blurb">Copy message</button>
+      <p class="msg" id="m2"></p>
     </div>
 
     <div class="card">
-      <h2>3. Preview the friend app (this network only)</h2>
-      <p>
-        Opens the same phone→TV remote. For a real share link, deploy step 1 —
-        this local URL only works near your Mac.
-      </p>
-      <a class="btn ghost" href="/static/friend-remote.html">Open friend remote (local demo)</a>
-      <a class="btn ghost" href="/direct" style="margin-top:8px">Or Direct mode</a>
-    </div>
-
-    <div class="card">
-      <h2>What they need</h2>
-      <ol>
-        <li>Roku or Hisense Roku TV</li>
-        <li>Phone on the <strong>same Wi‑Fi as their TV</strong></li>
-        <li>Control by mobile apps → <strong>Enabled</strong></li>
-      </ol>
+      <h2>Open the public remote</h2>
+      <a class="btn ghost" href="https://kurbaitaev.github.io/hisense-remote/" target="_blank" rel="noopener">Open in new tab</a>
     </div>
   </div>
   <script>
-    function copy(text, elId) {
+    const LINK = "https://kurbaitaev.github.io/hisense-remote/";
+    document.getElementById("qr").src =
+      "https://api.qrserver.com/v1/create-qr-code/?size=180x180&margin=8&data=" +
+      encodeURIComponent(LINK);
+    function copy(text, id) {
       navigator.clipboard.writeText(text).then(() => {
-        const el = document.getElementById(elId);
+        const el = document.getElementById(id);
         el.textContent = "Copied";
         setTimeout(() => { el.textContent = ""; }, 2000);
       });
     }
-    document.getElementById("copy-deploy").onclick = () =>
-      copy(document.getElementById("deploy-cmd").textContent, "copy-msg");
-    document.getElementById("copy-msg-btn").onclick = () =>
-      copy(document.getElementById("friend-msg").textContent, "copy-msg-2");
+    document.getElementById("copy-link").onclick = () => copy(LINK, "m1");
+    document.getElementById("copy-blurb").onclick = () =>
+      copy(document.getElementById("blurb").textContent, "m2");
+    document.getElementById("sms").onclick = () => {
+      location.href = "sms:&body=" + encodeURIComponent(
+        "Free Roku remote: " + LINK
+      );
+    };
   </script>
 </body>
 </html>
