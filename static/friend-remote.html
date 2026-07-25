@@ -373,6 +373,110 @@ button {
 #octet-row { align-items: center; }
 details summary { list-style: none; }
 details summary::-webkit-details-marker { display: none; }
+
+.perm-card {
+  background: linear-gradient(160deg, rgba(0, 180, 216, 0.14), rgba(0, 180, 216, 0.04));
+  border: 1px solid rgba(0, 180, 216, 0.45);
+  border-radius: var(--r);
+  padding: 18px 16px;
+  margin-bottom: 14px;
+}
+.perm-card h2 {
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin-bottom: 8px;
+  letter-spacing: -0.02em;
+}
+.perm-card p {
+  font-size: 0.85rem;
+  color: var(--muted);
+  line-height: 1.5;
+  margin-bottom: 12px;
+}
+.perm-card .btn-allow {
+  width: 100%;
+  padding: 16px;
+  font-size: 1rem;
+  font-weight: 700;
+  border-radius: 14px;
+  background: var(--accent);
+  color: #041018;
+  border: none;
+  margin-bottom: 10px;
+}
+.perm-card .btn-allow:disabled { opacity: 0.6; }
+.perm-status {
+  font-size: 0.8rem;
+  line-height: 1.45;
+  padding: 10px 12px;
+  border-radius: 10px;
+  margin-top: 4px;
+}
+.perm-status.wait {
+  background: rgba(255, 200, 80, 0.12);
+  border: 1px solid rgba(255, 200, 80, 0.35);
+  color: #ffd666;
+}
+.perm-status.ok {
+  background: rgba(74, 222, 128, 0.12);
+  border: 1px solid rgba(74, 222, 128, 0.35);
+  color: #86efac;
+}
+.perm-status.bad {
+  background: rgba(255, 71, 87, 0.1);
+  border: 1px solid rgba(255, 71, 87, 0.3);
+  color: #ff8a8a;
+}
+.how-box {
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface);
+  border-radius: 12px;
+  border: 1px solid var(--border);
+  font-size: 0.78rem;
+  color: var(--muted);
+  line-height: 1.5;
+}
+.how-box strong { color: var(--text); }
+.how-box ol { margin: 8px 0 0 18px; }
+.how-box li { margin-bottom: 6px; }
+
+.overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.72);
+  z-index: 50;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 16px;
+  padding-bottom: calc(16px + env(safe-area-inset-bottom));
+}
+.overlay.hidden { display: none !important; }
+.sheet {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 20px 20px 16px 16px;
+  padding: 20px 18px 16px;
+}
+.sheet h3 { font-size: 1.1rem; margin-bottom: 8px; }
+.sheet p { font-size: 0.88rem; color: var(--muted); line-height: 1.5; margin-bottom: 12px; }
+.sheet .popup-hint {
+  background: rgba(255, 200, 80, 0.12);
+  border: 1px solid rgba(255, 200, 80, 0.4);
+  color: #ffe08a;
+  border-radius: 12px;
+  padding: 12px;
+  font-size: 0.9rem;
+  font-weight: 600;
+  text-align: center;
+  margin-bottom: 14px;
+  line-height: 1.4;
+}
+.sheet ol { margin: 0 0 14px 18px; color: var(--muted); font-size: 0.82rem; line-height: 1.5; }
+.sheet ol strong { color: var(--text); }
 </style>
 </head>
 <body>
@@ -405,18 +509,40 @@ details summary::-webkit-details-marker { display: none; }
       <ul class="steps">
         <li><span class="n">1</span><span>Phone on the <em>same Wi‑Fi</em> as your TV</span></li>
         <li><span class="n">2</span><span>TV: Settings → System → Advanced → <em>Control by mobile apps → Enabled</em></span></li>
-        <li><span class="n">3</span><span><em>Scan for TVs</em>, pick yours, then Add to Home Screen</span></li>
+        <li><span class="n">3</span><span><em>Allow Local Network</em>, then scan for your TV</span></li>
       </ul>
     </div>
 
-    <div class="card">
-      <p id="scan-msg" class="scan"><span class="spin"></span>Scanning Wi‑Fi for Roku TVs…</p>
+    <!-- Step A: force Local Network permission -->
+    <div class="perm-card" id="perm-card">
+      <h2>1. Allow Local Network</h2>
+      <p>
+        Your phone must allow this site to look for TVs on Wi‑Fi.
+        Tap the button — if a popup appears, choose <strong style="color:var(--text)">Allow</strong>.
+      </p>
+      <button type="button" class="btn-allow" id="allow-net-btn">Allow Local Network access</button>
+      <div id="perm-status" class="perm-status wait hidden"></div>
+      <div class="how-box" id="how-ios">
+        <strong>If no popup appears (iPhone):</strong>
+        <ol>
+          <li>Open the iPhone <strong>Settings</strong> app</li>
+          <li>Scroll to <strong>Privacy &amp; Security</strong> → <strong>Local Network</strong></li>
+          <li>Turn <strong>on</strong> the switch for <strong>Safari</strong> (or <strong>TV Remote</strong> if you added it to Home Screen)</li>
+          <li>Come back here and tap the button again, then <strong>Scan for TVs</strong></li>
+        </ol>
+        <p style="margin-top:10px;margin-bottom:0">
+          <strong>Android / Chrome:</strong> when the banner asks for local network / nearby devices, tap <strong>Allow</strong>.
+        </p>
+      </div>
+    </div>
+
+    <!-- Step B: scan -->
+    <div class="card" id="scan-card">
+      <h2 style="font-size:1rem;margin-bottom:8px">2. Find your TV</h2>
+      <p id="scan-msg" class="scan">Tap “Allow Local Network” above first, then scan.</p>
       <div id="tv-list" class="tv-list hidden"></div>
       <button id="scan-btn" class="btn" type="button" style="width:100%;margin-top:4px">Scan for TVs</button>
-      <p class="hint" style="margin-top:12px;margin-bottom:8px">
-        If the browser asks for <strong style="color:var(--text)">Local Network</strong> access — allow it. That’s required to find TVs.
-      </p>
-      <p class="hint" style="margin-bottom:8px">Or type the last part of the TV IP (from Settings → Network → About):</p>
+      <p class="hint" style="margin-top:12px;margin-bottom:8px">Or type the last number of the TV IP (Settings → Network → About):</p>
       <div class="row" id="octet-row">
         <span id="net-prefix" class="net-prefix">192.168.0.</span>
         <input id="octet" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="154" autocomplete="off" enterkeyhint="go" style="max-width:88px;text-align:center">
@@ -430,6 +556,26 @@ details summary::-webkit-details-marker { display: none; }
         </div>
       </details>
       <p id="err" class="err hidden"></p>
+    </div>
+  </div>
+
+  <!-- Popup coach overlay while requesting permission -->
+  <div id="perm-overlay" class="overlay hidden" role="dialog" aria-modal="true">
+    <div class="sheet">
+      <h3>Look at the top of your screen</h3>
+      <div class="popup-hint">
+        If you see a popup about<br>
+        “Local Network” or “devices on your network”<br>
+        → tap <strong>Allow</strong>
+      </div>
+      <p>Don’t see a popup? Follow these steps, then close this.</p>
+      <ol>
+        <li><strong>iPhone:</strong> Settings → Privacy &amp; Security → <strong>Local Network</strong> → turn on <strong>Safari</strong> or <strong>TV Remote</strong></li>
+        <li><strong>Android:</strong> when Chrome asks for nearby devices / local network → Allow</li>
+        <li>Come back and tap <strong>Scan for TVs</strong></li>
+      </ol>
+      <button type="button" class="btn" id="overlay-done" style="width:100%">I allowed it — continue</button>
+      <button type="button" class="btn2" id="overlay-skip" style="width:100%;margin-top:8px">Skip — enter IP manually</button>
     </div>
   </div>
 
@@ -556,24 +702,100 @@ function lanFetch(url, timeoutMs = PROBE_MS) {
   return fetch(url, opts);
 }
 
-/** Ask browser for Local Network permission (Chrome 142+). */
+function setPermStatus(kind, html) {
+  const el = $("perm-status");
+  el.className = "perm-status " + kind;
+  el.innerHTML = html;
+  el.classList.remove("hidden");
+}
+
+function showOverlay(show) {
+  $("perm-overlay").classList.toggle("hidden", !show);
+}
+
+/**
+ * Trigger Local Network Access permission (user must tap Allow on the system popup).
+ * Chrome: LNA prompt via fetch to private IP + targetAddressSpace "local".
+ * Safari/iOS: may show popup, or require Settings → Privacy → Local Network.
+ */
 async function requestLocalNetworkAccess() {
-  // Trigger permission with a private IP literal on the phone's likely subnet
-  const probeIp = `${detectedPrefix}.1`;
-  try {
-    await lanFetch(`http://${probeIp}/`, 1500);
-  } catch {
-    /* expected — router may not answer; permission may still be granted */
+  // Detect subnet first so we hit real private IPs
+  const prefixes = await localSubnets();
+  if (prefixes[0]) setPrefixLabel(prefixes[0]);
+
+  const targets = [
+    `${detectedPrefix}.1`,
+    `${detectedPrefix}.254`,
+    "192.168.0.1",
+    "192.168.1.1",
+    "10.0.0.1",
+  ];
+
+  // Several private-IP fetches — browsers use these to show "Allow local network"
+  for (const ip of targets) {
+    try {
+      await lanFetch(`http://${ip}/`, 1200);
+    } catch {
+      /* ignore */
+    }
+    try {
+      await lanFetch(`http://${ip}:8060/query/device-info`, 1200);
+    } catch {
+      /* ignore */
+    }
   }
+
+  // Optional: permissions API (Chrome)
   try {
     if (navigator.permissions && navigator.permissions.query) {
       const st = await navigator.permissions.query({ name: "local-network-access" });
-      return st.state === "granted";
+      return st.state; // "granted" | "denied" | "prompt"
     }
   } catch {
-    /* name not supported */
+    /* not supported */
   }
-  return null;
+  return "unknown";
+}
+
+async function onAllowNetworkClick() {
+  const btn = $("allow-net-btn");
+  btn.disabled = true;
+  btn.textContent = "Requesting access…";
+  clearErr();
+  showOverlay(true);
+  setPermStatus(
+    "wait",
+    "Look for a system popup now — tap <strong>Allow</strong>. " +
+      "If nothing appears, use the iPhone steps below.",
+  );
+
+  // Small delay so user can read overlay, then fire permission triggers
+  await new Promise((r) => setTimeout(r, 400));
+  const state = await requestLocalNetworkAccess();
+
+  btn.disabled = false;
+  btn.textContent = "Allow Local Network access again";
+
+  if (state === "granted") {
+    setPermStatus("ok", "Local Network access granted. Scanning for TVs…");
+    showOverlay(false);
+    toast("Access allowed — scanning…");
+    await scanNetwork();
+    return;
+  }
+  if (state === "denied") {
+    setPermStatus(
+      "bad",
+      "Access was denied. On iPhone: Settings → Privacy &amp; Security → Local Network → enable Safari / TV Remote, then try again.",
+    );
+    return;
+  }
+
+  // unknown / Safari — keep overlay open with instructions
+  setPermStatus(
+    "wait",
+    "If you tapped Allow, close this and Scan. If there was no popup, open iPhone Settings (steps below) and turn Local Network on for Safari or TV Remote.",
+  );
 }
 
 /** Guess LAN /24 prefixes via WebRTC + common home routers. */
@@ -741,9 +963,6 @@ async function scanNetwork() {
   prefixes = [...new Set(prefixes)];
   if (prefixes[0]) setPrefixLabel(prefixes[0]);
 
-  setScanMsg("Allow Local Network if asked…", true);
-  await requestLocalNetworkAccess();
-
   // Prefer the phone's own subnet first (first WebRTC prefix)
   for (const pre of prefixes) {
     setPrefixLabel(pre);
@@ -814,19 +1033,22 @@ async function connect(ip, name) {
 }
 
 async function autoConnect() {
-  // Prefer quick reconnect to last TV
+  // Detect Wi‑Fi prefix for the last-octet helper (no full scan yet)
+  localSubnets().then((p) => {
+    if (p[0]) setPrefixLabel(p[0]);
+  });
+
+  // Prefer quick reconnect to last TV (may trigger permission once)
   const saved = localStorage.getItem(KEY);
   if (saved) {
-    setScanMsg(`Reconnecting to ${saved}…`, true);
+    setScanMsg(`Trying saved TV ${saved}…`, true);
     const hit = await probe(saved);
     if (hit) {
       await connect(hit.ip, hit.name);
       return;
     }
   }
-  const list = await scanNetwork();
-  // Auto-connect only if exactly one TV
-  if (list.length === 1) await connect(list[0].ip, list[0].name);
+  setScanMsg('Tap “Allow Local Network access”, then Scan for TVs.');
 }
 
 function pressFx(el) {
@@ -892,7 +1114,28 @@ $("go-octet").onclick = () => {
 $("octet").addEventListener("keydown", (e) => {
   if (e.key === "Enter") $("go-octet").click();
 });
-$("scan-btn").onclick = () => scanNetwork();
+$("scan-btn").onclick = async () => {
+  // Always re-request access on scan (user gesture → permission prompt)
+  setScanMsg("Requesting Local Network access…", true);
+  showOverlay(true);
+  await requestLocalNetworkAccess();
+  showOverlay(false);
+  await scanNetwork();
+};
+$("allow-net-btn").onclick = () => onAllowNetworkClick();
+$("overlay-done").onclick = async () => {
+  showOverlay(false);
+  setPermStatus("ok", "Continuing — scanning for TVs…");
+  await scanNetwork();
+};
+$("overlay-skip").onclick = () => {
+  showOverlay(false);
+  setPermStatus(
+    "wait",
+    "Enter the last number of the TV IP below (from Settings → Network → About).",
+  );
+  $("octet").focus();
+};
 
 async function doPlay() {
   const t = $("play").value.trim();
