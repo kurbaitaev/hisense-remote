@@ -137,6 +137,12 @@ async def find_tv_page():
     return FileResponse(STATIC_DIR / "find.html")
 
 
+@app.get("/remote")
+async def public_remote():
+    """Polished free remote (same as web/) with /api/scan when on this server."""
+    return FileResponse(ROOT / "web" / "index.html")
+
+
 @app.get("/api/share")
 async def share_info():
     """Info for share tooling — friend mode is phone → their Roku."""
