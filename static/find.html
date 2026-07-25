@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,viewport-fit=cover">
+<meta name="theme-color" content="#0a0a0f">
+<title>Find TV — no remote needed</title>
+<link rel="stylesheet" href="/static/style.css">
+<style>
+  .wrap { max-width: 420px; margin: 0 auto; padding: calc(16px + env(safe-area-inset-top)) 16px 32px; }
+  h1 { font-size: 1.3rem; margin-bottom: 8px; }
+  .lead { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 16px; }
+  .card {
+    background: var(--surface);
+    border: 1px solid var(--border);
+    border-radius: 16px;
+    padding: 18px;
+    margin-bottom: 14px;
+  }
+  .card h2 { font-size: 1rem; margin-bottom: 8px; }
+  .card p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.5; }
+  .ip-big {
+    font-size: 1.6rem;
+    font-weight: 800;
+    font-family: ui-monospace, monospace;
+    letter-spacing: 0.02em;
+    text-align: center;
+    padding: 16px;
+    background: var(--surface-2);
+    border-radius: 12px;
+    margin: 12px 0;
+    word-break: break-all;
+  }
+  .name { text-align: center; color: var(--accent); font-weight: 600; margin-bottom: 4px; }
+  .qr {
+    text-align: center;
+    background: #fff;
+    border-radius: 12px;
+    padding: 16px;
+    margin: 12px 0;
+  }
+  .qr img { width: 220px; height: 220px; }
+  .btn {
+    display: block;
+    width: 100%;
+    padding: 14px;
+    border: none;
+    border-radius: 12px;
+    font-family: inherit;
+    font-weight: 700;
+    font-size: 0.95rem;
+    cursor: pointer;
+    background: var(--accent);
+    color: #041018;
+    text-align: center;
+    text-decoration: none;
+    margin-top: 8px;
+  }
+  .btn2 {
+    background: transparent;
+    border: 1px solid var(--border);
+    color: var(--text);
+  }
+  .status { font-size: 0.85rem; color: var(--text-muted); margin: 8px 0; }
+  .status.spin::before {
+    content: "";
+    display: inline-block;
+    width: 12px; height: 12px;
+    border: 2px solid var(--border);
+    border-top-color: var(--accent);
+    border-radius: 50%;
+    animation: s 0.7s linear infinite;
+    margin-right: 8px;
+    vertical-align: -2px;
+  }
+  @keyframes s { to { transform: rotate(360deg); } }
+  .err { color: #ff8a8a; font-size: 0.85rem; line-height: 1.45; }
+  ol { margin: 8px 0 0 18px; color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; }
+  ol strong { color: var(--text); }
+</style>
+</head>
+<body>
+<div class="wrap">
+  <h1>Find your TV</h1>
+  <p class="lead">
+    No physical remote needed. This page runs on a computer on your Wi‑Fi,
+    finds the Roku, then your <strong style="color:var(--text)">phone</strong> scans the QR.
+  </p>
+
+  <div class="card">
+    <h2>1. Power the TV on</h2>
+    <p>Use the power button on the TV set if you have no remote.</p>
+  </div>
+
+  <div class="card">
+    <h2>2. Searching this Wi‑Fi…</h2>
+    <p id="status" class="status spin">Looking for Roku TVs (SSDP + network)…</p>
+    <div id="results"></div>
+    <button type="button" class="btn btn2" id="rescan">Search again</button>
+  </div>
+
+  <div class="card">
+    <h2>How this works</h2>
+    <ol>
+      <li>Keep this page open on a <strong>laptop/Mac on the same Wi‑Fi</strong> as the TV</li>
+      <li>Open the <strong>Camera</strong> app on your phone and point at the QR</li>
+      <li>The free remote opens with your TV already connected</li>
+    </ol>
+    <p style="margin-top:10px">
+      Phone Safari cannot safely scan every device on Wi‑Fi by itself —
+      a computer on the network does the finding for you.
+    </p>
+  </div>
+</div>
+<script>
+const PUBLIC = "https://kurbaitaev.github.io/hisense-remote/";
+const $ = (id) => document.getElementById(id);
+
+function phoneLink(ip) {
+  return PUBLIC + "?ip=" + encodeURIComponent(ip);
+}
+
+function renderTv(tv) {
+  const ip = tv.ip;
+  const name = tv.name || tv.model || "Roku TV";
+  const link = phoneLink(ip);
+  const qr =
+    "https://api.qrserver.com/v1/create-qr-code/?size=220x220&margin=10&data=" +
+    encodeURIComponent(link);
+
+  return (
+    `<div class="name">${escapeHtml(name)}</div>` +
+    `<div class="ip-big">${escapeHtml(ip)}</div>` +
+    `<div class="qr"><img src="${qr}" alt="QR code for phone" width="220" height="220"></div>` +
+    `<p style="text-align:center;font-size:0.8rem;color:var(--text-muted);margin-bottom:8px">Scan with your phone camera</p>` +
+    `<a class="btn" href="${link}">Open remote for this TV</a>` +
+    `<button type="button" class="btn btn2" data-copy="${escapeHtml(link)}">Copy phone link</button>`
+  );
+}
+
+function escapeHtml(s) {
+  return String(s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/"/g, "&quot;");
+}
+
+async function search() {
+  const status = $("status");
+  const results = $("results");
+  status.className = "status spin";
+  status.textContent = "Looking for Roku TVs on this Wi‑Fi…";
+  results.innerHTML = "";
+
+  try {
+    const res = await fetch("/api/scan?platform=roku");
+    const data = await res.json();
+    const tvs = data.tvs || [];
+    if (!tvs.length) {
+      status.className = "status err";
+      status.textContent =
+        "No Roku found. Is the TV powered on and on this same Wi‑Fi? " +
+        "On the TV enable: Settings → System → Advanced → Control by mobile apps → Enabled " +
+        "(needs a remote once, or factory defaults).";
+      return;
+    }
+    status.className = "status";
+    status.textContent = `Found ${tvs.length} TV${tvs.length > 1 ? "s" : ""}. Scan the QR with your phone.`;
+    results.innerHTML = tvs.map(renderTv).join('<hr style="border:none;border-top:1px solid var(--border);margin:20px 0">');
+    results.querySelectorAll("[data-copy]").forEach((btn) => {
+      btn.onclick = () => {
+        navigator.clipboard.writeText(btn.dataset.copy).then(() => {
+          btn.textContent = "Copied!";
+          setTimeout(() => { btn.textContent = "Copy phone link"; }, 1500);
+        });
+      };
+    });
+  } catch (e) {
+    status.className = "status err";
+    status.textContent =
+      "Could not reach the finder server. Run ./start.sh on this computer, then open http://THIS-PC:8080/find";
+  }
+}
+
+$("rescan").onclick = () => search();
+search();
+</script>
+</body>
+</html>

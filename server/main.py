@@ -131,6 +131,12 @@ async def share_page():
     return FileResponse(STATIC_DIR / "share.html")
 
 
+@app.get("/find")
+async def find_tv_page():
+    """No physical remote: SSDP-find TVs on LAN, show QR for phone remote."""
+    return FileResponse(STATIC_DIR / "find.html")
+
+
 @app.get("/api/share")
 async def share_info():
     """Info for share tooling — friend mode is phone → their Roku."""
