@@ -8,8 +8,8 @@
 <meta name="apple-mobile-web-app-title" content="TV Remote">
 <meta name="mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a0f">
-<meta name="description" content="Free Roku remote in your browser. No App Store. Phone to TV on your Wi‑Fi.">
-<title>TV Remote — Free Roku Remote</title>
+<meta name="description" content="Free Roku remote on your phone. Add to Home Screen — no App Store, no mic required.">
+<title>TV Remote — Install free Roku remote</title>
 <link rel="manifest" href="manifest.webmanifest">
 <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2300b4d8'/%3E%3Crect x='12' y='18' width='40' height='28' rx='4' fill='none' stroke='%23041018' stroke-width='3'/%3E%3Cpath d='M22 52h20' stroke='%23041018' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
 <link rel="apple-touch-icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2300b4d8'/%3E%3Crect x='12' y='18' width='40' height='28' rx='4' fill='none' stroke='%23041018' stroke-width='3'/%3E%3Cpath d='M22 52h20' stroke='%23041018' stroke-width='3' stroke-linecap='round'/%3E%3C/svg%3E">
@@ -207,26 +207,30 @@ button {
 @keyframes spin { to { transform: rotate(360deg); } }
 
 .install {
-  display: flex;
-  align-items: center;
-  gap: 10px;
   background: var(--accent-dim);
   border: 1px solid rgba(0, 180, 216, 0.3);
   border-radius: 12px;
-  padding: 10px 12px;
+  padding: 12px 14px;
   margin-bottom: 14px;
-  font-size: 0.78rem;
+  font-size: 0.8rem;
   color: #a8e8f5;
-  line-height: 1.35;
+  line-height: 1.45;
 }
+.install strong { color: #e0f7fc; font-weight: 600; }
+.install .os { margin-top: 8px; color: #9ad4e0; font-size: 0.76rem; }
+.install .actions { display: flex; gap: 8px; margin-top: 10px; }
 .install button {
-  margin-left: auto;
-  flex-shrink: 0;
-  padding: 8px 12px;
-  font-size: 0.75rem;
+  flex: 1;
+  padding: 9px 12px;
+  font-size: 0.78rem;
   background: var(--accent);
   color: #041018;
   border-radius: 8px;
+}
+.install button.ghost {
+  background: transparent;
+  border: 1px solid rgba(0, 180, 216, 0.4);
+  color: #a8e8f5;
 }
 
 .top {
@@ -336,25 +340,32 @@ button {
   <header class="header">
     <div class="brand">
       <h1>TV Remote <span class="badge">Free</span></h1>
-      <p id="status" class="sub">No App Store · phone → your TV</p>
+      <p id="status" class="sub">Install on your phone · no App Store · no mic</p>
     </div>
   </header>
 
   <div id="install" class="install hidden">
-    <span>Add to Home Screen for a full-screen remote like an app.</span>
-    <button type="button" id="install-dismiss">Got it</button>
+    <strong>Install this remote on your phone</strong>
+    <div class="os">
+      <strong>iPhone:</strong> Share → Add to Home Screen → Add<br>
+      <strong>Android:</strong> Menu ⋮ → Add to Home screen
+    </div>
+    <div class="actions">
+      <button type="button" class="ghost" id="install-dismiss">Later</button>
+      <button type="button" id="install-done">Done</button>
+    </div>
   </div>
 
   <div id="setup">
     <div class="card hero">
       <p>
-        A <strong>free Roku remote</strong> in your browser.
-        Same idea as the App Store apps — without paying.
+        Free Roku remote on your phone.
+        <strong>No App Store. No microphone needed.</strong>
       </p>
       <ul class="steps">
         <li><span class="n">1</span><span>Phone on the <em>same Wi‑Fi</em> as your TV</span></li>
         <li><span class="n">2</span><span>TV: Settings → System → Advanced → <em>Control by mobile apps → Enabled</em></span></li>
-        <li><span class="n">3</span><span>We find your TV (or enter the IP from Network → About)</span></li>
+        <li><span class="n">3</span><span>Connect below, then <em>Add to Home Screen</em> to install</span></li>
       </ul>
     </div>
 
@@ -417,7 +428,7 @@ button {
   </div>
 
   <p class="footer">
-    Free &amp; open source · works on your home Wi‑Fi only<br>
+    Free · install via Home Screen · no mic required<br>
     <a href="https://github.com/kurbaitaev/hisense-remote">GitHub</a>
   </p>
 </div>
@@ -574,7 +585,7 @@ async function connect(ip, name) {
   $("status").classList.add("ok");
   $("setup").classList.add("hidden");
   $("remote").classList.remove("hidden");
-  toast("Connected — free remote ready");
+  toast("Connected — install on Home Screen next");
   maybeShowInstall();
 }
 
@@ -665,15 +676,17 @@ $("change").onclick = () => {
   $("manual-row").classList.add("hidden");
   $("connect-row").classList.add("hidden");
   $("err").classList.add("hidden");
-  $("status").textContent = "No App Store · phone → your TV";
+  $("status").textContent = "Install on your phone · no App Store · no mic";
   $("status").classList.remove("ok");
   autoConnect();
 };
 
-$("install-dismiss").onclick = () => {
+function dismissInstall() {
   localStorage.setItem(INSTALL_KEY, "1");
   $("install").classList.add("hidden");
-};
+}
+$("install-dismiss").onclick = dismissInstall;
+$("install-done").onclick = dismissInstall;
 
 autoConnect();
 </script>

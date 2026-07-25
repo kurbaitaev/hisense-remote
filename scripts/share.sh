@@ -1,20 +1,25 @@
 #!/usr/bin/env bash
-# Free Roku remote for everyone — print the public link.
+# Print install instructions for the free phone remote (no mic).
 set -euo pipefail
 
 LINK="https://kurbaitaev.github.io/hisense-remote/"
-REPO="https://github.com/kurbaitaev/hisense-remote"
 
 echo ""
-echo "  TV Remote — free Roku remote (no App Store)"
-echo "  ───────────────────────────────────────────"
+echo "  Free TV Remote — install on your phone"
+echo "  ──────────────────────────────────────"
 echo "  ${LINK}"
 echo ""
-echo "  Repo: ${REPO}"
+echo "  1. Same Wi‑Fi as the TV"
+echo "  2. TV: Control by mobile apps → Enabled"
+echo "  3. Open the link → connect"
+echo "  4. Install on phone:"
+echo "       iPhone:  Share → Add to Home Screen"
+echo "       Android: ⋮ → Add to Home screen"
+echo "  5. Open TV Remote from the home screen"
 echo ""
-echo "  Anyone opens that URL on their phone,"
-echo "  same Wi‑Fi as THEIR TV, and uses the remote."
-echo "  ───────────────────────────────────────────"
+echo "  No App Store. No microphone required."
+echo "  Voice is optional (home server) — not needed for the remote."
+echo "  ──────────────────────────────────────"
 echo ""
 
 if command -v open >/dev/null 2>&1; then

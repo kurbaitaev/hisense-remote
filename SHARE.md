@@ -1,53 +1,59 @@
-# Free Roku remote for everyone
+# Free Roku remote — install on your phone
 
-**Product link:** https://kurbaitaev.github.io/hisense-remote/
+**Link:** https://kurbaitaev.github.io/hisense-remote/
 
-This is a **free alternative to paid App Store Roku remotes**.  
-Anyone opens the page on their phone, connects to **their** TV on **their** Wi‑Fi, and controls it. No account. No fee.
-
-```
-Phone ── home Wi‑Fi ──► Roku TV :8060
-  ▲
-  └── static web page (GitHub Pages / Cloudflare / etc.)
-```
+Install like an app (Home Screen). **No App Store. No mic required.**  
+Voice is optional and only for people who run an extra home server.
 
 ---
 
-## Tell people
+## How to install (send this)
 
-> Free Roku remote (no App Store):  
-> **https://kurbaitaev.github.io/hisense-remote/**  
+> **Free TV remote for Roku** (no App Store):  
+> https://kurbaitaev.github.io/hisense-remote/  
 >  
-> Same Wi‑Fi as your TV. On the TV: Settings → System → Advanced →  
-> Control by mobile apps → **Enabled**.  
-> Then open the link and use it. Add to Home Screen if you want.
+> 1. Phone on the **same Wi‑Fi** as your TV  
+> 2. On the TV: Settings → System → Advanced → **Control by mobile apps → Enabled**  
+> 3. Open the link → connect to your TV  
+> 4. **Install on phone:**  
+>    - **iPhone:** Share → **Add to Home Screen**  
+>    - **Android:** Menu ⋮ → **Add to Home screen**  
+> 5. Open **TV Remote** from your home screen — no microphone needed  
 
 ---
 
-## Host your own copy
+## Install steps (detail)
 
-Only the **`web/`** folder is required.
+### iPhone
 
-### GitHub Pages (this repo)
+1. Open the link in **Safari**  
+2. Connect to your TV  
+3. Share → **Add to Home Screen** → Add  
+4. Launch from the home screen icon  
 
-Already live. After editing `web/`:
+### Android
+
+1. Open the link in **Chrome**  
+2. Connect to your TV  
+3. Menu → **Add to Home screen** / **Install app**  
+4. Launch from the home screen icon  
+
+---
+
+## Voice (optional only)
+
+The installed remote is **buttons + type a title to play**.
+
+Mic / voice needs a separate computer on your network running this repo’s server. Skip it unless you want that.
+
+---
+
+## Host your own copy of the web remote
 
 ```bash
+# After editing web/
 git subtree split --prefix web -b gh-pages
 git push origin gh-pages --force
 ```
 
-### Cloudflare Pages
-
-```bash
-npx wrangler pages deploy web --project-name=roku-remote
-```
-
-Build output directory: `web`.
-
----
-
-## Optional: voice / advanced (developers)
-
-The Python server under `server/` is for people who want mic + smarter play **on their own home network**.  
-Regular users never need it — the free remote is `web/` only.
+Or Cloudflare Pages with build output = `web`.

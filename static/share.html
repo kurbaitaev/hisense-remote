@@ -4,12 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no, viewport-fit=cover">
   <meta name="theme-color" content="#0a0a0f">
-  <title>Share free TV Remote</title>
+  <title>Install free TV Remote</title>
   <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&display=swap" rel="stylesheet">
   <link rel="stylesheet" href="/static/style.css">
   <style>
     .share-page { max-width: 420px; margin: 0 auto; padding: 20px 16px 40px; }
-    .share-page h1 { font-size: 1.35rem; margin-bottom: 6px; }
+    .share-page h1 { font-size: 1.3rem; margin-bottom: 6px; }
     .lead { color: var(--text-muted); font-size: 0.9rem; line-height: 1.5; margin-bottom: 18px; }
     .card {
       background: var(--surface);
@@ -19,7 +19,8 @@
       margin-bottom: 14px;
     }
     .card h2 { font-size: 1rem; margin-bottom: 8px; }
-    .card p { color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; }
+    .card p, .card li { color: var(--text-muted); font-size: 0.85rem; line-height: 1.55; }
+    .card ol { padding-left: 18px; margin: 8px 0 0; }
     .highlight {
       border-color: rgba(0, 180, 216, 0.4);
       background: rgba(0, 180, 216, 0.06);
@@ -73,20 +74,26 @@
       border-radius: 12px;
     }
     .qr-wrap img { width: 180px; height: 180px; }
+    .muted-note {
+      margin-top: 10px;
+      font-size: 0.78rem;
+      color: var(--text-muted);
+      line-height: 1.45;
+    }
   </style>
 </head>
 <body>
   <div class="share-page">
     <a class="back-link" href="/">← Back</a>
-    <h1>Free remote for everyone</h1>
+    <h1>Install the free remote</h1>
     <p class="lead">
-      Not “control my TV.” Anyone opens the link, connects to
-      <strong>their</strong> Roku on <strong>their</strong> Wi‑Fi.
-      Same job as an App Store remote — free.
+      Main product: remote on your phone (Home Screen).
+      <strong>No App Store. No microphone.</strong>
+      Voice is optional for advanced users only.
     </p>
 
     <div class="card highlight">
-      <h2>Public link</h2>
+      <h2>1. Open on your phone</h2>
       <div class="pre" id="link">https://kurbaitaev.github.io/hisense-remote/</div>
       <button type="button" class="btn" id="copy-link">Copy link</button>
       <button type="button" class="btn ghost" id="sms">Text link</button>
@@ -97,21 +104,45 @@
     </div>
 
     <div class="card">
+      <h2>2. Install on Home Screen</h2>
+      <p><strong style="color:var(--text)">iPhone (Safari)</strong></p>
+      <ol>
+        <li>Open the link</li>
+        <li>Tap <strong style="color:var(--text)">Share</strong></li>
+        <li><strong style="color:var(--text)">Add to Home Screen</strong> → Add</li>
+      </ol>
+      <p style="margin-top:12px"><strong style="color:var(--text)">Android (Chrome)</strong></p>
+      <ol>
+        <li>Open the link</li>
+        <li>Menu <strong style="color:var(--text)">⋮</strong></li>
+        <li><strong style="color:var(--text)">Add to Home screen</strong> / Install app</li>
+      </ol>
+      <p class="muted-note">
+        Also enable on the TV: Settings → System → Advanced → Control by mobile apps → Enabled.
+        Same Wi‑Fi as the TV.
+      </p>
+    </div>
+
+    <div class="card">
       <h2>Message to send</h2>
-      <div class="pre" id="blurb">Free Roku remote (no App Store):
+      <div class="pre" id="blurb">Free Roku remote — install on your phone (no App Store, no mic):
 https://kurbaitaev.github.io/hisense-remote/
 
-Same Wi‑Fi as your TV. On the TV:
-Settings → System → Advanced → Control by mobile apps → Enabled
-
-Open the link, connect, use the remote. Add to Home Screen if you want.</div>
+1. Same Wi‑Fi as your TV
+2. TV: Control by mobile apps → Enabled
+3. Open the link → connect
+4. Install: iPhone Share → Add to Home Screen · Android ⋮ → Add to Home screen
+5. Open TV Remote from your home screen</div>
       <button type="button" class="btn" id="copy-blurb">Copy message</button>
       <p class="msg" id="m2"></p>
     </div>
 
     <div class="card">
-      <h2>Open the public remote</h2>
-      <a class="btn ghost" href="https://kurbaitaev.github.io/hisense-remote/" target="_blank" rel="noopener">Open in new tab</a>
+      <h2>Voice (optional only)</h2>
+      <p>
+        Buttons and typing a title work with the installed remote alone.
+        Microphone / voice needs a separate home server — skip unless you want that.
+      </p>
     </div>
   </div>
   <script>
@@ -131,7 +162,7 @@ Open the link, connect, use the remote. Add to Home Screen if you want.</div>
       copy(document.getElementById("blurb").textContent, "m2");
     document.getElementById("sms").onclick = () => {
       location.href = "sms:&body=" + encodeURIComponent(
-        "Free Roku remote: " + LINK
+        "Free Roku remote (install on phone, no mic):\n" + LINK
       );
     };
   </script>

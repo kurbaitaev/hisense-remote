@@ -1,64 +1,78 @@
-# TV Remote — free Roku remote (no App Store)
+# TV Remote — free Roku remote on your phone
 
-**Use it now:** [https://kurbaitaev.github.io/hisense-remote/](https://kurbaitaev.github.io/hisense-remote/)
+**Open it:** [https://kurbaitaev.github.io/hisense-remote/](https://kurbaitaev.github.io/hisense-remote/)
 
-A free remote control for **Roku / Hisense Roku** TVs.  
-Runs in your phone browser. Talks **straight to your TV** on your home Wi‑Fi — same idea as paid App Store remotes, without paying.
+A free remote for **Roku / Hisense Roku** TVs.  
+Use it in the browser, then **Add to Home Screen** so it feels like an app — without paying for one in the App Store.
 
-```
-Your phone ── same Wi‑Fi ──► Your Roku TV
-```
-
-No account. No subscription. No your neighbor’s TV — only the TV on *your* network.
+No account. No subscription. Your phone talks to **your** TV on **your** Wi‑Fi.
 
 ---
 
-## Use it (anyone)
+## Install on your phone (main path — no mic)
 
-1. Open **[the remote](https://kurbaitaev.github.io/hisense-remote/)** on your phone  
-2. Join the **same Wi‑Fi** as your TV  
-3. On the TV (once):  
-   **Settings → System → Advanced system settings → Control by mobile apps → Enabled**  
-4. Allow **Local Network** if the browser asks  
-5. Connect (auto-find or paste IP from **Settings → Network → About**)  
-6. Optional: **Share → Add to Home Screen** for a full-screen app feel  
+### 1. TV setup (once)
 
-### What you get
+On the TV:
+
+**Settings → System → Advanced system settings → Control by mobile apps → Enabled**
+
+### 2. Open the remote
+
+On your **phone** (same Wi‑Fi as the TV):
+
+**https://kurbaitaev.github.io/hisense-remote/**
+
+- Allow **Local Network** if the browser asks  
+- Wait for auto-connect, or enter the TV IP from  
+  **Settings → Network → About**
+
+### 3. Add to Home Screen (install)
+
+This makes it open full-screen like a normal app.
+
+**iPhone (Safari)**  
+1. Tap the **Share** button  
+2. Tap **Add to Home Screen**  
+3. Tap **Add**  
+4. Open **TV Remote** from your home screen  
+
+**Android (Chrome)**  
+1. Tap the menu **⋮**  
+2. Tap **Add to Home screen** / **Install app**  
+3. Confirm  
+4. Open **TV Remote** from your home screen  
+
+You do **not** need the App Store. You do **not** need a microphone.
+
+### What you can do
 
 | | |
 |--|--|
 | D-pad, OK, Home, Back | ✅ |
 | Volume / mute / power | ✅ |
 | Play / pause / skip | ✅ |
-| Netflix, YouTube, Prime, Paramount+, Disney+, Hulu | ✅ |
-| Type a title → search & open | ✅ |
-| App Store price | **$0** |
-
-Works only on your home network (by design — your TV isn’t on the public internet).
+| Open Netflix, YouTube, Prime, etc. | ✅ |
+| Type a title → search on the TV | ✅ |
+| Microphone / voice | Optional (advanced) |
 
 ---
 
 ## Share with anyone
 
-Send this link:
+Send this link. Each person installs it for **their** TV:
 
 ```
 https://kurbaitaev.github.io/hisense-remote/
 ```
 
-Each person uses it with **their** phone and **their** TV.
-
 ---
 
-## For developers
+## Optional: voice features (advanced)
 
-| Path | What it is |
-|------|------------|
-| **`web/`** | The public remote (static HTML — what GitHub Pages serves) |
-| **`static/` + `server/`** | Optional home bridge: voice, mic, smarter play on *your* LAN |
-| **[SHARE.md](./SHARE.md)** | Deploy / host your own copy of the static remote |
+Buttons and “Play …” by typing work with the web remote alone.
 
-### Run the optional voice bridge (your house only)
+**Voice / microphone** is extra and only if you run the home server on a Mac/Pi on your network:
 
 ```bash
 git clone https://github.com/kurbaitaev/hisense-remote.git
@@ -66,12 +80,25 @@ cd hisense-remote
 python3 -m venv .venv && source .venv/bin/activate
 pip install -r requirements.txt
 cp config.example.json config.json   # set "host" to your TV IP
+cp .env.example .env                 # optional GROQ_API_KEY for mic
 ./start.sh
 ```
 
-Phone: `https://<your-computer-ip>:8443`
+Then open `https://<your-computer-ip>:8443` on your phone (HTTPS required for mic).
 
-### Update the public site after editing `web/`
+Most people never need this.
+
+---
+
+## For developers
+
+| Path | Purpose |
+|------|---------|
+| **`web/`** | Public remote (what people install on their phone) |
+| **`server/`** | Optional voice bridge on your LAN |
+| **[SHARE.md](./SHARE.md)** | Host your own copy of the static remote |
+
+Update the public site after editing `web/`:
 
 ```bash
 git subtree split --prefix web -b gh-pages
@@ -80,20 +107,11 @@ git push origin gh-pages --force
 
 ---
 
-## TV requirement
-
-**Control by mobile apps → Enabled**  
-(Settings → System → Advanced system settings)
-
-Without that, the TV rejects remote commands (same as official apps).
-
----
-
 ## Privacy
 
-- The web remote stores your TV IP in **your browser** only.  
-- Commands go **phone → TV**. Nothing is sent to a central control server.  
-- GitHub Pages only hosts the HTML/JS files.
+- TV IP is saved in **your browser** only  
+- Commands go **phone → TV** (no central control server)  
+- GitHub Pages only hosts the HTML/JS  
 
 ---
 
