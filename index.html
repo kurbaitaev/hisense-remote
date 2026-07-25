@@ -282,6 +282,82 @@ function detectPrefix() {
   });
 }
 
+/** True when running inside the iPhone/Android app (Capacitor). */
+function isNativeApp() {
+  try {
+    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
+  } catch {
+    return false;
+  }
+}
+
+/**
+ * Native discovery (like official remote apps):
+ * SSDP multicast + HTTP subnet scan via iOS/Android networking (no browser CORS).
+ * First launch: iOS shows “Local Network” → Allow.
+ */
+async function findViaNative() {
+  if (!isNativeApp()) return null;
+  const plugin = window.Capacitor?.Plugins?.RokuDiscover;
+  if (!plugin || typeof plugin.scan !== "function") {
+    // CapacitorHttp path — native fetch, no CORS
+    return findViaCapacitorHttp();
+  }
+  try {
+    setMsg(`<span class="spin"></span>Searching Wi‑Fi for Roku (like the official app)…`);
+    const res = await plugin.scan();
+    const tvs = (res && res.tvs) || [];
+    return tvs.map((t) => ({
+      ip: t.ip,
+      name: t.name || "Roku TV",
+    }));
+  } catch (e) {
+    console.warn("native scan failed", e);
+    return findViaCapacitorHttp();
+  }
+}
+
+/** Native HTTP GET (CapacitorHttp) — works on LAN without CORS. */
+async function findViaCapacitorHttp() {
+  const Http = window.Capacitor?.Plugins?.CapacitorHttp;
+  if (!Http) return null;
+  const prefixes = await detectPrefix();
+  const pre = prefixes[0] || prefix;
+  setPrefix(pre);
+  const found = [];
+  const seen = new Set();
+  const order = octetOrder();
+  const batch = 24;
+  for (let i = 0; i < order.length; i += batch) {
+    setMsg(`<span class="spin"></span>Scanning ${pre}.x … ${Math.round((i / order.length) * 100)}%`);
+    const slice = order.slice(i, i + batch);
+    await Promise.all(slice.map(async (n) => {
+      const ip = `${pre}.${n}`;
+      try {
+        const res = await Http.get({
+          url: `http://${ip}:8060/query/device-info`,
+          connectTimeout: 500,
+          readTimeout: 500,
+          responseType: "text",
+        });
+        const data = typeof res.data === "string" ? res.data : String(res.data || "");
+        if (res.status === 200 && /device-info|roku|serial-number/i.test(data)) {
+          if (seen.has(ip)) return;
+          seen.add(ip);
+          const name =
+            (data.match(/<friendly-device-name>([^<]+)/) ||
+              data.match(/<model-name>([^<]+)/) ||
+              [])[1] || "Roku TV";
+          found.push({ ip, name: name.trim() });
+          renderList(found);
+        }
+      } catch {}
+    }));
+    if (found.length) break;
+  }
+  return found;
+}
+
 /** Server-side discovery when page is served from home bridge (works reliably). */
 async function findViaServer() {
   try {
@@ -425,26 +501,32 @@ async function findMyTv() {
 
   let list = null;
 
-  // 1) Best path: home server API (when opened via http://computer:8080/remote)
-  list = await findViaServer();
+  // 1) Native iPhone/Android app — SSDP like official remotes (works, phone-only)
+  list = await findViaNative();
   if (list && list.length) {
-    setMsg(`Found ${list.length} TV${list.length > 1 ? "s" : ""} — tap to open`, "ok");
-    renderList(list);
-    if (list.length === 1) connect(list[0].ip, list[0].name);
-    busy = false;
-    $("find-btn").disabled = false;
-    $("find-btn").textContent = "Find my TV";
+    finishFind(list);
     return;
   }
 
-  // 2) Browser scan of your subnet
+  // 2) Home server API (http://computer:8080/remote)
+  list = await findViaServer();
+  if (list && list.length) {
+    finishFind(list);
+    return;
+  }
+
+  // 3) Browser scan (limited on Safari website; better in Chrome / native app)
   const prefixes = await detectPrefix();
   if (prefixes[0]) setPrefix(prefixes[0]);
   list = await findViaBrowser(prefixes);
+  finishFind(list || []);
+}
 
+function finishFind(list) {
   busy = false;
   $("find-btn").disabled = false;
   $("find-btn").textContent = "Find my TV again";
+  renderList(list);
 
   if (list.length === 1) {
     setMsg(`Found ${list[0].name} (${list[0].ip})`, "ok");
@@ -452,10 +534,11 @@ async function findMyTv() {
   } else if (list.length > 1) {
     setMsg(`Found ${list.length} TVs — tap one`, "ok");
   } else {
+    const nativeHint = isNativeApp()
+      ? "Allow <strong style='color:var(--text)'>Local Network</strong> when iOS asks, then try again. Power the TV on."
+      : "Safari websites cannot scan Wi‑Fi like apps. Install the free <strong style='color:var(--text)'>TV Remote</strong> app from this project (Xcode → Run on your iPhone), or use the number pad if you know the IP.";
     setMsg(
-      "Couldn’t auto-find a TV on this phone.<br>" +
-      "<strong style='color:var(--text)'>Use the number pad below</strong> with the last part of the IP, " +
-      "or on a computer open <code style='color:var(--accent)'>/find</code> and scan the QR.",
+      "No Roku found yet.<br>" + nativeHint,
       "error",
     );
   }
