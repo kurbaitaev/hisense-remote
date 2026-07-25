@@ -10,3 +10,7 @@ dist/*.zip
 .cursor-grok-context.md
 *.log
 /tmp/
+mobile/node_modules/
+mobile/ios/App/Pods/
+mobile/android/.gradle/
+mobile/android/app/build/

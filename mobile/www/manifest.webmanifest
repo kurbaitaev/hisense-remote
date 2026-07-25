@@ -1,0 +1,12 @@
+{
+  "name": "TV Remote — Free Roku Remote",
+  "short_name": "TV Remote",
+  "description": "Free Roku remote in your browser. No App Store purchase. Phone controls your TV on your Wi‑Fi.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "orientation": "portrait",
+  "background_color": "#0a0a0f",
+  "theme_color": "#0a0a0f",
+  "categories": ["utilities", "entertainment"]
+}

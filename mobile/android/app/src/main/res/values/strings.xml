@@ -1,0 +1,7 @@
+<?xml version='1.0' encoding='utf-8'?>
+<resources>
+    <string name="app_name">TV Remote</string>
+    <string name="title_activity_main">TV Remote</string>
+    <string name="package_name">com.tvremote.free</string>
+    <string name="custom_url_scheme">com.tvremote.free</string>
+</resources>
