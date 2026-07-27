@@ -41,9 +41,15 @@ HTTP_PORT="${HTTP_PORT:-8080}"
 HTTPS_PORT="${HTTPS_PORT:-8443}"
 
 echo ""
-echo "Remote URLs (same Wi‑Fi as the TV):"
-echo "  HTTPS (mic):  https://${IP}:${HTTPS_PORT}"
-echo "  HTTP:         http://${IP}:${HTTP_PORT}"
+echo "  ════════════════════════════════════════"
+echo "  On your PHONE (same Wi‑Fi as the TV):"
+echo "    http://${IP}:${HTTP_PORT}/remote"
+echo "  or one-tap connect:"
+echo "    http://${IP}:${HTTP_PORT}/go"
+echo "  ════════════════════════════════════════"
+echo "  Finds Rokus on THIS Wi‑Fi only (your TV,"
+echo "  not someone else's house)."
+echo "  HTTPS (optional mic): https://${IP}:${HTTPS_PORT}"
 echo ""
 
 uvicorn server.main:app --host 0.0.0.0 --port "$HTTP_PORT" &

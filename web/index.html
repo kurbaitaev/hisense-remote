@@ -112,7 +112,10 @@ input:focus{outline:none;border-color:var(--accent)}
   <section id="setup">
     <div class="card">
       <h2>Find your TV</h2>
-      <p>Power the TV on. Stay on the same Wi‑Fi. One tap searches for a Roku.</p>
+      <p>
+        Power the TV on. Stay on <strong style="color:var(--text)">your</strong> home Wi‑Fi.
+        We only search <em>this</em> network — never someone else’s house.
+      </p>
       <button type="button" class="btn" id="find-btn">Find my TV</button>
       <p id="msg" class="msg"></p>
       <div id="list" class="list hidden"></div>
@@ -408,12 +411,16 @@ function done(list) {
     connect(list[0].ip, list[0].name);
   } else if (list.length > 1) {
     msg(`Found ${list.length} TVs — tap one`, "ok");
-  } else {
+    } else {
+    const onLanServer = !!(window.__SERVER_FIND__ || location.port === "8080" || location.port === "8443");
     msg(
-      "No TV found automatically. Use the <strong style='color:var(--text)'>number pad</strong> below " +
-      "(last number of the IP). On iPhone Safari, auto-find is often blocked — " +
-      "for reliable find open this remote from your home network as " +
-      "<code style='color:var(--accent)'>http://&lt;computer&gt;:8080/remote</code> while the server runs.",
+      onLanServer
+        ? "No Roku on this Wi‑Fi. Power the TV on and try again."
+        : "Phone browser couldn’t scan Wi‑Fi (common on iPhone).<br>" +
+          "<strong style='color:var(--text)'>For auto-find that always works:</strong> at home run " +
+          "<code style='color:var(--accent)'>docker compose up -d</code> on any PC, then open " +
+          "<code style='color:var(--accent)'>http://PC-IP:8080/remote</code> on the phone.<br>" +
+          "Or type the last number of the TV IP below.",
       "err",
     );
   }

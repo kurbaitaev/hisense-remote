@@ -1,69 +1,86 @@
 # TV Remote — free web remote for Roku
 
-**https://kurbaitaev.github.io/hisense-remote/**
+Everyone uses the **same web app**.  
+It only sees TVs on **the Wi‑Fi your phone is on** — so each person controls **their own** TV, never yours.
 
-A free **web app** remote for Roku / Hisense Roku TVs.  
-No App Store. No account. No microphone required.
-
-Your phone talks to **your** TV on **your** Wi‑Fi.
-
----
-
-## First time (web only)
-
-### On your phone
-
-1. Same **Wi‑Fi** as the TV  
-2. Open **https://kurbaitaev.github.io/hisense-remote/**  
-3. Power the TV **on**  
-4. Tap **Find my TV**  
-   - If it finds one → tap **Open**  
-   - If not → use the **number pad** (last number of the TV IP)  
-
-### Install like an app
-
-- **iPhone:** Share → **Add to Home Screen**  
-- **Android:** ⋮ → **Add to Home screen**  
+```
+Phone on home Wi‑Fi ──► finds Roku on that Wi‑Fi only
+```
 
 ---
 
-## Make “Find my TV” work reliably
+## How other people use it (their TV)
 
-Browsers (especially Safari) limit scanning Wi‑Fi from public websites.  
-For **best auto-find**, open the remote from a small server on your home network:
+### Option A — Guaranteed auto-find (recommended)
+
+Someone at their house runs a tiny server **once** on any PC/Pi/Mac that stays on the home Wi‑Fi:
 
 ```bash
-cd ~/hisense-remote
-./start.sh
+git clone https://github.com/kurbaitaev/hisense-remote.git
+cd hisense-remote
+docker compose up -d --build
+# or without Docker:
+#   python3 -m venv .venv && source .venv/bin/activate
+#   pip install -r requirements.txt && ./start.sh
 ```
 
-Then on the phone open:
+Then **on their phone** (same Wi‑Fi):
 
 ```
-http://<your-computer-ip>:8080/remote
+http://<that-computer-ip>:8080/remote
 ```
 
-That page can use real network discovery (`/api/scan`) and usually finds the TV in one tap.
+or one-tap:
+
+```
+http://<that-computer-ip>:8080/go
+```
+
+The **computer** searches the network (like official apps).  
+The **phone** only opens the page — and connects to **their** Roku automatically.
+
+That’s the same path that works for you.
+
+### Option B — Public website only (no server)
+
+**https://kurbaitaev.github.io/hisense-remote/**
+
+1. Same Wi‑Fi as **their** TV  
+2. Tap **Find my TV**  
+3. Phone tries to scan **their** network  
+
+Works better on some Androids.  
+**iPhone Safari often blocks Wi‑Fi scanning** from public websites — then use the number pad (last part of the IP) or Option A.
 
 ---
 
-## What you get
+## Important: not your TV
 
-| | |
-|--|--|
-| D-pad, OK, Home, Back | ✅ |
-| Volume / mute / power | ✅ |
-| Play / pause | ✅ |
-| Netflix, YouTube, Prime, Paramount+, Disney+, Hulu | ✅ |
-| Type a title → search | ✅ |
-| App Store price | **$0** |
+| Person | Opens app on | Finds |
+|--------|----------------|--------|
+| You at home | Your Wi‑Fi | Your Roku |
+| Friend at their home | Their Wi‑Fi | Their Roku |
+
+Private IPs like `192.168.0.154` can look the same in every house — that’s normal.  
+They’re only reachable **inside that house**.
 
 ---
 
-## Optional later
+## First time for you (right now)
 
-- **Voice / mic** — only with the home server + API keys (not required)  
-- **Native iPhone app** — experimental under `mobile/` (not required for the web remote)
+Phone on your Wi‑Fi, Mac server running:
+
+**http://192.168.0.10:8080/remote**  
+or **http://192.168.0.10:8080/go**
+
+---
+
+## Install on Home Screen
+
+- **iPhone:** Share → Add to Home Screen  
+- **Android:** ⋮ → Add to Home screen  
+
+No App Store. No mic required.
 
 ---
 

@@ -112,7 +112,10 @@ input:focus{outline:none;border-color:var(--accent)}
   <section id="setup">
     <div class="card">
       <h2>Find your TV</h2>
-      <p>Power the TV on. Stay on the same Wi‑Fi. One tap searches for a Roku.</p>
+      <p>
+        Power the TV on. Stay on <strong style="color:var(--text)">your</strong> home Wi‑Fi.
+        We only search <em>this</em> network — never someone else’s house.
+      </p>
       <button type="button" class="btn" id="find-btn">Find my TV</button>
       <p id="msg" class="msg"></p>
       <div id="list" class="list hidden"></div>
@@ -378,14 +381,20 @@ async function findMyTv() {
   msg(`<span class="spin"></span>Looking for Roku on your Wi‑Fi…`);
   showList([]);
 
-  // 1) LAN server (best when opened as http://your-mac:8080/remote)
+  // Prefound from server HTML inject
+  if (Array.isArray(window.__PREFOUND_TVS__) && window.__PREFOUND_TVS__.length) {
+    done(window.__PREFOUND_TVS__);
+    return;
+  }
+
+  // 1) LAN server API (Mac does the search — works)
   let list = await viaServer();
   if (list && list.length) {
     done(list);
     return;
   }
 
-  // 2) Browser scan of your subnet
+  // 2) Browser scan (often blocked on iPhone Safari + public HTTPS)
   const prefixes = await detectPrefixes();
   if (prefixes[0]) setPrefix(prefixes[0]);
   list = await viaBrowser(prefixes);
@@ -402,12 +411,16 @@ function done(list) {
     connect(list[0].ip, list[0].name);
   } else if (list.length > 1) {
     msg(`Found ${list.length} TVs — tap one`, "ok");
-  } else {
+    } else {
+    const onLanServer = !!(window.__SERVER_FIND__ || location.port === "8080" || location.port === "8443");
     msg(
-      "No TV found automatically. Use the <strong style='color:var(--text)'>number pad</strong> below " +
-      "(last number of the IP). On iPhone Safari, auto-find is often blocked — " +
-      "for reliable find open this remote from your home network as " +
-      "<code style='color:var(--accent)'>http://&lt;computer&gt;:8080/remote</code> while the server runs.",
+      onLanServer
+        ? "No Roku on this Wi‑Fi. Power the TV on and try again."
+        : "Phone browser couldn’t scan Wi‑Fi (common on iPhone).<br>" +
+          "<strong style='color:var(--text)'>For auto-find that always works:</strong> at home run " +
+          "<code style='color:var(--accent)'>docker compose up -d</code> on any PC, then open " +
+          "<code style='color:var(--accent)'>http://PC-IP:8080/remote</code> on the phone.<br>" +
+          "Or type the last number of the TV IP below.",
       "err",
     );
   }
@@ -496,23 +509,53 @@ $("change").onclick = () => {
   showList([]);
 };
 
-// boot
+// boot — Mac injects window.__PREFOUND_TVS__ so phone does not scan
 (async () => {
   const q = qip();
-  if (q) { connect(q, "Roku TV"); try { history.replaceState({}, "", location.pathname); } catch {} return; }
+  if (q) {
+    connect(q, "Roku TV");
+    try { history.replaceState({}, "", location.pathname); } catch {}
+    return;
+  }
+
+  // Server already found TVs while serving this page
+  const pre = window.__PREFOUND_TVS__;
+  if (Array.isArray(pre) && pre.length === 1 && pre[0].ip) {
+    msg(`Found ${pre[0].name || "TV"} — connecting…`, "ok");
+    showList(pre);
+    connect(pre[0].ip, pre[0].name || "Roku TV");
+    return;
+  }
+  if (Array.isArray(pre) && pre.length > 1) {
+    msg(`Found ${pre.length} TVs — tap one`, "ok");
+    showList(pre);
+    return;
+  }
 
   const prefixes = await detectPrefixes();
   if (prefixes[0]) setPrefix(prefixes[0]);
 
-  // Auto-find if home server is available
+  // Live API (same Mac server)
+  msg(`<span class="spin"></span>Finding TV…`);
   const server = await viaServer();
-  if (server && server.length === 1) { connect(server[0].ip, server[0].name); return; }
-  if (server && server.length > 1) { msg(`Found ${server.length} TVs`, "ok"); showList(server); return; }
+  if (server && server.length === 1) {
+    connect(server[0].ip, server[0].name);
+    return;
+  }
+  if (server && server.length > 1) {
+    msg(`Found ${server.length} TVs — tap one`, "ok");
+    showList(server);
+    return;
+  }
 
   const saved = localStorage.getItem(KEY);
   if (saved) {
-    msg("Tap your saved TV or Find again");
+    msg("Tap saved TV, or Find my TV");
     showList([{ ip: saved, name: "Saved TV" }]);
+  } else if (window.__SERVER_FIND__) {
+    msg("No Roku found. Power the TV on, then tap Find my TV.", "err");
+  } else {
+    msg("For auto-find open <strong style='color:var(--text)'>http://YOUR-MAC:8080/remote</strong> on this Wi‑Fi (not github.io).");
   }
 })();
 </script>

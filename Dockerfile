@@ -11,6 +11,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 
 COPY server/ server/
 COPY static/ static/
+COPY web/ web/
 COPY data/ data/
 COPY config.example.json config.example.json
 COPY docker-entrypoint.sh /docker-entrypoint.sh

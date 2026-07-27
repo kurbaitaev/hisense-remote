@@ -1,7 +1,8 @@
-# Always-on home bridge — must share the LAN with your Roku TV.
-# Use network_mode: host so ECP (port 8060) and mDNS discovery work.
+# Run on any PC/Pi on the SAME Wi‑Fi as YOUR Roku.
+# Phone opens http://THIS-COMPUTER:8080/remote — finds YOUR TV only.
 #
-# Pi setup: ./scripts/setup-pi.sh
+#   docker compose up -d --build
+#   then open the URL printed in the logs
 
 services:
   hisense-remote:
@@ -15,4 +16,4 @@ services:
       - HTTP_PORT=8080
       - HTTPS_PORT=8443
     volumes:
-      - ${DATA_DIR:-/var/lib/hisense-remote}:/data
+      - ${DATA_DIR:-./data}:/data
