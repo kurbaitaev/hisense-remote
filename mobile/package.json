@@ -4,9 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "sync": "cp ../web/index.html ../web/manifest.webmanifest www/ && npx cap sync",
-    "ios": "npm run sync && npx cap open ios",
-    "android": "npm run sync && npx cap open android"
+    "sync": "npx cap sync",
+    "ios": "npx cap sync ios && npx cap open ios",
+    "android": "npx cap sync android && npx cap open android"
   },
   "keywords": [],
   "author": "",

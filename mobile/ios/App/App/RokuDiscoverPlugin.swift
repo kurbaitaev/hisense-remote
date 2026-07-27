@@ -3,12 +3,12 @@ import Capacitor
 import Darwin
 
 /**
- Roku discovery — same protocol as official remotes & open-source projects
- (Roam, RoMote, matthewdowney/roku):
+ Roku discovery — same protocol as official remotes and open-source projects
+ (Roam SSDPDiscovery, RoMote, grahamplata/roku-remote, matthewdowney/roku):
 
-   1. SSDP M-SEARCH → 239.255.255.250:1900  ST: roku:ecp
-   2. Parse LOCATION: http://IP:8060/
-   3. Optional: GET /query/device-info for friendly name
+   1. Bind UDP, M-SEARCH → 239.255.255.250:1900  ST: roku:ecp
+   2. Parse LOCATION: http://IP:8060/ (or sender IP)
+   3. GET /query/device-info for friendly name
    4. Fallback: HTTP probe of this phone's /24 on port 8060
 
  Requires NSLocalNetworkUsageDescription + user Allow on first run.
@@ -19,31 +19,33 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
     public let jsName = "RokuDiscover"
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "probe", returnType: CAPPluginReturnPromise),
     ]
 
+    /// Full network scan (SSDP + subnet HTTP).
     @objc func scan(_ call: CAPPluginCall) {
         DispatchQueue.global(qos: .userInitiated).async {
-            // 1) SSDP (primary — how real apps find Rokus)
             var byIp: [String: [String: String]] = [:]
-            for item in Self.ssdpDiscover(timeout: 3.0) {
+
+            // 1) SSDP — how Roam / official apps find Rokus
+            for item in Self.ssdpDiscover(timeout: 3.5) {
                 if let ip = item["ip"] { byIp[ip] = item }
             }
 
-            // 2) HTTP subnet always merges (catches TVs that miss multicast)
-            for item in Self.subnetScan(timeoutPerHost: 0.4) {
+            // 2) HTTP subnet always merges (multicast can miss on some routers)
+            for item in Self.subnetScan(timeoutPerHost: 0.35) {
                 if let ip = item["ip"], byIp[ip] == nil {
                     byIp[ip] = item
                 }
             }
 
-            var tvs = Array(byIp.values)
-            tvs = tvs.map { item in
+            var tvs = Array(byIp.values).map { item -> [String: String] in
                 var copy = item
                 let ip = copy["ip"] ?? ""
-                if let name = Self.fetchName(ip: ip, timeout: 0.8) {
+                if let name = Self.fetchName(ip: ip, timeout: 0.7) {
                     copy["name"] = name
-                } else if (copy["name"] ?? "").isEmpty {
-                    copy["name"] = "Roku TV"
+                } else if (copy["name"] ?? "").isEmpty || copy["name"] == "Roku TV" {
+                    copy["name"] = copy["name"] ?? "Roku TV"
                 }
                 return copy
             }
@@ -52,7 +54,23 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
         }
     }
 
+    /// Quick check: is this IP still a Roku? (saved-TV reconnect)
+    @objc func probe(_ call: CAPPluginCall) {
+        guard let ip = call.getString("ip"), !ip.isEmpty else {
+            call.reject("ip required")
+            return
+        }
+        DispatchQueue.global(qos: .userInitiated).async {
+            if let name = Self.fetchName(ip: ip, timeout: 1.2) {
+                call.resolve(["ok": true, "ip": ip, "name": name])
+            } else {
+                call.resolve(["ok": false, "ip": ip])
+            }
+        }
+    }
+
     // MARK: - SSDP M-SEARCH (roku:ecp)
+    // Pattern aligned with msdrigg/Roam Shared/Backend/Discovery/SSDP/SSDPDiscovery.swift
 
     private static func ssdpDiscover(timeout: TimeInterval) -> [[String: String]] {
         var found: [[String: String]] = []
@@ -64,32 +82,47 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
 
         var reuse: Int32 = 1
         setsockopt(sock, SOL_SOCKET, SO_REUSEADDR, &reuse, socklen_t(MemoryLayout.size(ofValue: reuse)))
+        #if !os(Linux)
+        setsockopt(sock, SOL_SOCKET, SO_REUSEPORT, &reuse, socklen_t(MemoryLayout.size(ofValue: reuse)))
+        #endif
+
+        var nosig: Int32 = 1
+        setsockopt(sock, SOL_SOCKET, SO_NOSIGPIPE, &nosig, socklen_t(MemoryLayout.size(ofValue: nosig)))
 
         var ttl: UInt8 = 4
         setsockopt(sock, IPPROTO_IP, IP_MULTICAST_TTL, &ttl, socklen_t(MemoryLayout.size(ofValue: ttl)))
 
-        // Non-blocking-ish receive timeout
-        var tv = timeval(tv_sec: 0, tv_usec: 250_000)
+        // Roam: bind 0.0.0.0:0 before send — required on iOS for reliable SSDP
+        var bindAddr = sockaddr_in()
+        bindAddr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+        bindAddr.sin_family = sa_family_t(AF_INET)
+        bindAddr.sin_port = 0
+        bindAddr.sin_addr.s_addr = 0  // INADDR_ANY
+        let bindOk = withUnsafePointer(to: &bindAddr) { ap in
+            ap.withMemoryRebound(to: sockaddr.self, capacity: 1) { sap in
+                Darwin.bind(sock, sap, socklen_t(MemoryLayout<sockaddr_in>.size))
+            }
+        }
+        if bindOk != 0 { return [] }
+
+        var tv = timeval(tv_sec: 0, tv_usec: 300_000)
         setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &tv, socklen_t(MemoryLayout.size(ofValue: tv)))
 
-        // Official ECP discovery string (Roku External Control API)
+        // Official ECP discovery (Roku External Control API)
         let msearch =
             "M-SEARCH * HTTP/1.1\r\n" +
             "HOST: 239.255.255.250:1900\r\n" +
             "MAN: \"ssdp:discover\"\r\n" +
-            "MX: 3\r\n" +
+            "MX: 2\r\n" +
             "ST: roku:ecp\r\n" +
-            "USER-AGENT: TVRemote/1.0 UPnP/1.1 iOS\r\n" +
             "\r\n"
 
-        var addr = sockaddr_in()
-        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
-        addr.sin_family = sa_family_t(AF_INET)
-        addr.sin_port = UInt16(1900).bigEndian
-        addr.sin_addr.s_addr = inet_addr("239.255.255.250")
-
-        // Send M-SEARCH a few times (multicast is lossy — same as Java RokuScan tools)
-        for _ in 0..<3 {
+        func sendMSearch() {
+            var addr = sockaddr_in()
+            addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+            addr.sin_family = sa_family_t(AF_INET)
+            addr.sin_port = UInt16(1900).bigEndian
+            addr.sin_addr.s_addr = inet_addr("239.255.255.250")
             msearch.withCString { ptr in
                 withUnsafePointer(to: &addr) { ap in
                     ap.withMemoryRebound(to: sockaddr.self, capacity: 1) { sap in
@@ -97,25 +130,68 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
                     }
                 }
             }
-            usleep(80_000)
+        }
+
+        // Multicast is lossy — burst + re-send during listen (like Roam)
+        for _ in 0..<3 {
+            sendMSearch()
+            usleep(60_000)
         }
 
         let deadline = Date().addingTimeInterval(timeout)
-        var buf = [UInt8](repeating: 0, count: 8192)
+        var nextResend = Date().addingTimeInterval(1.0)
+        var buf = [UInt8](repeating: 0, count: 16384)
+        var from = sockaddr_in()
+        var fromLen: socklen_t = socklen_t(MemoryLayout<sockaddr_in>.size)
 
         while Date() < deadline {
-            let n = recv(sock, &buf, buf.count, 0)
-            if n <= 0 { continue }
-            let text = String(bytes: buf[0..<Int(n)], encoding: .utf8) ?? ""
-            guard text.uppercased().contains("ROKU") || text.lowercased().contains("roku:ecp")
-                    || text.lowercased().contains("location:") else { continue }
-
-            if let ip = parseLocationIp(text), !seen.contains(ip) {
-                seen.insert(ip)
-                found.append(["ip": ip, "name": "Roku TV", "via": "ssdp"])
+            if Date() >= nextResend {
+                sendMSearch()
+                nextResend = Date().addingTimeInterval(1.0)
             }
+
+            fromLen = socklen_t(MemoryLayout<sockaddr_in>.size)
+            let n = withUnsafeMutablePointer(to: &from) { fp in
+                fp.withMemoryRebound(to: sockaddr.self, capacity: 1) { sap in
+                    recvfrom(sock, &buf, buf.count, 0, sap, &fromLen)
+                }
+            }
+            if n <= 0 { continue }
+
+            let text = String(bytes: buf[0..<Int(n)], encoding: .utf8) ?? ""
+            let senderIp: String = {
+                var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
+                var sa = from
+                withUnsafePointer(to: &sa) { ap in
+                    ap.withMemoryRebound(to: sockaddr.self, capacity: 1) { sap in
+                        getnameinfo(sap, fromLen, &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST)
+                    }
+                }
+                return String(cString: host)
+            }()
+
+            var ip = parseLocationIp(text)
+            if ip == nil {
+                // Roam also uses the UDP source host when LOCATION is odd
+                if isPrivateIPv4(senderIp),
+                   text.uppercased().contains("ROKU") || text.lowercased().contains("roku:ecp") {
+                    ip = senderIp
+                }
+            }
+            guard let ip, !seen.contains(ip) else { continue }
+            seen.insert(ip)
+            found.append(["ip": ip, "name": "Roku TV", "via": "ssdp"])
         }
         return found
+    }
+
+    private static func isPrivateIPv4(_ ip: String) -> Bool {
+        let parts = ip.split(separator: ".").compactMap { Int($0) }
+        guard parts.count == 4 else { return false }
+        if parts[0] == 10 { return true }
+        if parts[0] == 192 && parts[1] == 168 { return true }
+        if parts[0] == 172 && parts[1] >= 16 && parts[1] <= 31 { return true }
+        return false
     }
 
     /// Parse LOCATION: http://192.168.x.x:8060/ from SSDP response
@@ -124,17 +200,13 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
             let line = String(raw)
             let upper = line.uppercased()
             guard upper.hasPrefix("LOCATION:") else { continue }
-            // drop "LOCATION:"
             let value = line.dropFirst(9).trimmingCharacters(in: .whitespaces)
-            if let url = URL(string: value), let host = url.host {
-                let parts = host.split(separator: ".")
-                if parts.count == 4, parts.allSatisfy({ Int($0) != nil }) {
-                    return host
-                }
+            if let url = URL(string: value), let host = url.host, isPrivateIPv4(host) {
+                return host
             }
-            // fallback regex
             if let r = value.range(of: #"\b(\d{1,3}\.){3}\d{1,3}\b"#, options: .regularExpression) {
-                return String(value[r])
+                let host = String(value[r])
+                if isPrivateIPv4(host) { return host }
             }
         }
         return nil
@@ -166,7 +238,7 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
                 NI_NUMERICHOST
             )
             let ip = String(cString: hostname)
-            if ip.hasPrefix("192.168.") || ip.hasPrefix("10.") {
+            if isPrivateIPv4(ip) {
                 let parts = ip.split(separator: ".")
                 if parts.count == 4 {
                     return "\(parts[0]).\(parts[1]).\(parts[2])"
@@ -181,7 +253,7 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
         var found: [[String: String]] = []
         let lock = NSLock()
 
-        // Typical home DHCP ends first
+        // Typical home DHCP ranges first (your Hisense often lands mid-range)
         var order: [Int] = [
             100, 101, 102, 103, 150, 151, 152, 153, 154, 155, 160,
             10, 11, 20, 50, 2, 3, 4, 5, 1, 254, 200, 110, 120,
@@ -190,7 +262,7 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
 
         let group = DispatchGroup()
         let queue = DispatchQueue(label: "roku.http.scan", attributes: .concurrent)
-        let sem = DispatchSemaphore(value: 40)
+        let sem = DispatchSemaphore(value: 48)
 
         for n in order {
             group.enter()
@@ -205,7 +277,7 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
                 }
             }
         }
-        _ = group.wait(timeout: .now() + 14)
+        _ = group.wait(timeout: .now() + 12)
         return found
     }
 
@@ -229,7 +301,7 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
                 ?? firstMatch(text, pattern: "<model-name>([^<]+)")
                 ?? "Roku TV"
         }.resume()
-        _ = sem.wait(timeout: .now() + timeout + 0.25)
+        _ = sem.wait(timeout: .now() + timeout + 0.3)
         return result
     }
 

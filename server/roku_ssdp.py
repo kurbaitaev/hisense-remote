@@ -49,17 +49,27 @@ def discover_roku_ssdp(timeout: float = 3.0) -> list[dict[str, Any]]:
         except OSError:
             pass
 
-        try:
-            sock.sendto(MSEARCH, (SSDP_ADDR, SSDP_PORT))
-        except OSError:
-            return []
-
         import time
 
-        deadline = time.monotonic() + timeout
-        while time.monotonic() < deadline:
+        # Multicast is lossy — burst + re-send (same idea as Roam SSDPDiscovery)
+        for _ in range(3):
             try:
-                data, _addr = sock.recvfrom(4096)
+                sock.sendto(MSEARCH, (SSDP_ADDR, SSDP_PORT))
+            except OSError:
+                return []
+            time.sleep(0.05)
+
+        deadline = time.monotonic() + timeout
+        next_resend = time.monotonic() + 1.0
+        while time.monotonic() < deadline:
+            if time.monotonic() >= next_resend:
+                try:
+                    sock.sendto(MSEARCH, (SSDP_ADDR, SSDP_PORT))
+                except OSError:
+                    pass
+                next_resend = time.monotonic() + 1.0
+            try:
+                data, addr = sock.recvfrom(8192)
             except TimeoutError:
                 continue
             except OSError:
@@ -75,6 +85,12 @@ def discover_roku_ssdp(timeout: float = 3.0) -> list[dict[str, Any]]:
                     friendly = line.split(":", 1)[1].strip()[:80]
 
             ip = _ip_from_location(location or "")
+            if not ip and addr and len(addr) >= 1:
+                candidate = addr[0]
+                if re.match(r"^\d+\.\d+\.\d+\.\d+$", candidate) and (
+                    "roku" in text.lower() or "roku:ecp" in text.lower()
+                ):
+                    ip = candidate
             if not ip or ip in seen:
                 continue
             seen.add(ip)

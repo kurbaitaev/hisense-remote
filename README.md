@@ -1,46 +1,62 @@
-# TV Remote — free Roku remote
+# TV Remote — free Roku / Hisense remote
 
-Control Roku / Hisense Roku TVs without a paid App Store remote.
+Control Roku TVs (including Hisense Roku) without a paid App Store remote.
 
-## How apps find TVs (research)
+## Research: how other projects do it
 
-Open-source and official remotes all use the same **Roku ECP discovery**:
+Open-source remotes all use **Roku ECP discovery**, not a website scan:
+
+| Project | What it is |
+|---------|------------|
+| [Roam](https://github.com/msdrigg/Roam) | Production Swift remote — SSDP as soon as you open the app |
+| [RoMote](https://github.com/wseemann/RoMote) | Android remote — MulticastLock + ECP |
+| [grahamplata/roku-remote](https://github.com/grahamplata/roku-remote) | Go CLI `find` via SSDP |
+| [matthewdowney/roku](https://github.com/matthewdowney/roku) | Classic Java M-SEARCH `roku:ecp` |
 
 ```
 UDP multicast SSDP
   → 239.255.255.250:1900
   → M-SEARCH … ST: roku:ecp
-  → response LOCATION: http://192.168.x.x:8060/
+  → LOCATION: http://192.168.x.x:8060/
+→ keys: POST /keypress/…
 ```
 
-Then keys go to `http://TV-IP:8060/keypress/...`.
-
-Examples: [Roam](https://github.com/msdrigg/Roam), [RoMote](https://github.com/wseemann/RoMote), [matthewdowney/roku](https://github.com/matthewdowney/roku), [grahamplata/roku-remote](https://github.com/grahamplata/roku-remote).
-
-**Websites cannot do SSDP.** A native shell can. That’s what `mobile/` is.
+**Websites cannot do SSDP.** Native code can. That’s `mobile/`.
 
 ---
 
-## Use the phone app (finds TV like official apps)
+## Phone app (finds TV like official apps)
 
 ```bash
 cd ~/hisense-remote
 ./scripts/run-ios-app.sh
 ```
 
-1. Xcode → select your **iPhone** → **Run ▶**  
-2. Allow **Local Network**  
-3. Power TV on → **Find my TV**  
+1. Install **Xcode** from the Mac App Store if needed  
+2. Xcode → select your **iPhone** → **Signing** (Apple ID) → **Run ▶**  
+3. **Allow Local Network**  
+4. Power TV on → app finds it via SSDP  
 
 Details: **[mobile/README.md](./mobile/README.md)**
 
 ---
 
-## Website only (buttons; find limited on iPhone Safari)
+## Website only (buttons; weak auto-find in Safari)
 
 **https://kurbaitaev.github.io/hisense-remote/**
 
-Fine for control after you have an IP. Auto-find is unreliable in Safari (browser rules).
+Fine after you already know the TV IP. Safari cannot match native SSDP.
+
+---
+
+## Optional: Mac LAN helper
+
+With the Python server on your Mac (`./start.sh`), phone can open:
+
+- `http://<mac-ip>:8080/go` — redirects to remote with discovered TV  
+- `http://<mac-ip>:8080/remote` — injects found TVs  
+
+Day-to-day target is still the **native app** (no Mac required).
 
 ---
 

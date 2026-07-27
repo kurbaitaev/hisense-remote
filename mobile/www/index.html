@@ -90,7 +90,9 @@ input:focus{outline:none;border-color:var(--accent)}
       <div id="list" class="list hidden"></div>
       <div class="how">
         <strong>First launch:</strong> when iOS/Android asks for <strong>Local Network</strong>, tap <strong>Allow</strong>.
-        Without that, the app cannot see your Roku.
+        Without that, the app cannot see your Roku.<br><br>
+        <strong>If keys fail:</strong> on the TV open Settings → System → Advanced system settings →
+        <strong>Control by mobile apps</strong> → <strong>Enabled</strong>.
       </div>
     </div>
   </section>
@@ -192,9 +194,13 @@ function connect(ip, name) {
   toast("Connected");
 }
 
-/** Official-style discovery via native SSDP plugin */
+function discoverPlugin() {
+  return window.Capacitor?.Plugins?.RokuDiscover || null;
+}
+
+/** Official-style discovery via native SSDP plugin (Roam / RoMote pattern) */
 async function nativeScan() {
-  const plugin = window.Capacitor?.Plugins?.RokuDiscover;
+  const plugin = discoverPlugin();
   if (!plugin?.scan) throw new Error("RokuDiscover plugin missing — rebuild the app");
   const res = await plugin.scan();
   return (res.tvs || []).map((t) => ({
@@ -204,18 +210,56 @@ async function nativeScan() {
   }));
 }
 
-async function findMyTv() {
+/** Fast reconnect to last IP (probe device-info) */
+async function trySavedTv() {
+  const saved = localStorage.getItem(KEY);
+  if (!saved || !isNative()) return null;
+  const plugin = discoverPlugin();
+  if (plugin?.probe) {
+    try {
+      const r = await plugin.probe({ ip: saved });
+      if (r?.ok) return { ip: saved, name: r.name || "Roku TV", via: "saved" };
+    } catch { /* fall through */ }
+  }
+  // Fallback: CapacitorHttp GET device-info
+  try {
+    if (window.Capacitor?.Plugins?.CapacitorHttp) {
+      const r = await Capacitor.Plugins.CapacitorHttp.request({
+        url: `http://${saved}:8060/query/device-info`,
+        method: "GET",
+        connectTimeout: 1200,
+        readTimeout: 1200,
+      });
+      if (r.status === 200 && String(r.data || "").includes("device-info")) {
+        const m = String(r.data).match(/<friendly-device-name>([^<]+)/);
+        return { ip: saved, name: (m && m[1].trim()) || "Roku TV", via: "saved" };
+      }
+    }
+  } catch { /* ignore */ }
+  return null;
+}
+
+/**
+ * @param {{ preferSaved?: boolean }} opts
+ * preferSaved: on launch, probe last IP first (fast). Manual Find always full-scans.
+ */
+async function findMyTv(opts = {}) {
+  const preferSaved = !!opts.preferSaved;
   if (busy) return;
   busy = true;
   $("find-btn").disabled = true;
   $("find-btn").textContent = "Searching…";
-  msg(`<span class="spin"></span>SSDP search for Roku on this Wi‑Fi…`);
+  msg(`<span class="spin"></span>${preferSaved ? "Checking last TV / SSDP…" : "SSDP search for Roku on this Wi‑Fi…"}`);
   showList([]);
 
   let list = [];
   try {
     if (!isNative()) {
       msg("Open this inside the <strong style='color:var(--text)'>TV Remote app</strong> (not Safari). Websites cannot SSDP-scan like apps.", "err");
+    } else if (preferSaved) {
+      const saved = await trySavedTv();
+      if (saved) list = [saved];
+      else list = await nativeScan();
     } else {
       list = await nativeScan();
     }
@@ -238,7 +282,8 @@ async function findMyTv() {
       "No Roku found.<br>" +
       "• Power the TV on<br>" +
       "• Same Wi‑Fi as this phone<br>" +
-      "• Settings → Privacy → <strong style='color:var(--text)'>Local Network</strong> → ON for TV Remote",
+      "• Settings → Privacy → <strong style='color:var(--text)'>Local Network</strong> → ON for TV Remote<br>" +
+      "• TV: Control by mobile apps → Enabled",
       "err",
     );
   }
@@ -293,7 +338,7 @@ document.querySelectorAll("[data-app]").forEach((b) => {
   };
 });
 
-$("find-btn").onclick = () => findMyTv();
+$("find-btn").onclick = () => findMyTv({ preferSaved: false });
 $("play").onclick = async () => {
   const t = $("title").value.trim();
   if (!t || !tv) return;
@@ -312,16 +357,11 @@ $("change").onclick = () => {
   showList([]);
 };
 
-// Auto-find on launch when native
+// Auto-find on launch when native (Roam: discover as soon as you open the app)
 (async () => {
-  const saved = localStorage.getItem(KEY);
-  if (saved && isNative()) {
-    // Still re-scan so moved TVs are found; show saved as fallback
-    msg("Tap Find my TV (auto-search uses SSDP like official apps)");
-  }
   if (isNative()) {
-    // slight delay so Local Network prompt can attach to first scan
-    setTimeout(() => findMyTv(), 400);
+    // slight delay so Local Network permission prompt can attach
+    setTimeout(() => findMyTv({ preferSaved: true }), 450);
   } else {
     msg("Install the iOS/Android app for SSDP discovery. Safari websites cannot scan like apps.", "err");
   }

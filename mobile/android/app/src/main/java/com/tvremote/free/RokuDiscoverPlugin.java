@@ -36,6 +36,7 @@ import java.util.regex.Pattern;
 
 /**
  * Same discovery path as open-source Roku remotes (SSDP roku:ecp + HTTP :8060).
+ * MulticastLock required on Android (RoMote / matthewdowney pattern).
  */
 @CapacitorPlugin(name = "RokuDiscover")
 public class RokuDiscoverPlugin extends Plugin {
@@ -44,9 +45,8 @@ public class RokuDiscoverPlugin extends Plugin {
             "M-SEARCH * HTTP/1.1\r\n" +
             "HOST: 239.255.255.250:1900\r\n" +
             "MAN: \"ssdp:discover\"\r\n" +
-            "MX: 3\r\n" +
+            "MX: 2\r\n" +
             "ST: roku:ecp\r\n" +
-            "USER-AGENT: TVRemote/1.0 UPnP/1.1 Android\r\n" +
             "\r\n";
 
     @PluginMethod
@@ -64,15 +64,11 @@ public class RokuDiscoverPlugin extends Plugin {
                 }
                 try {
                     Map<String, JSObject> byIp = new LinkedHashMap<>();
-                    for (JSObject t : ssdpDiscover(3000)) {
+                    for (JSObject t : ssdpDiscover(3500)) {
                         byIp.put(t.getString("ip"), t);
                     }
-                    if (byIp.isEmpty()) {
-                        for (JSObject t : subnetScan()) {
-                            byIp.putIfAbsent(t.getString("ip"), t);
-                        }
-                    } else {
-                        // still enrich names
+                    for (JSObject t : subnetScan()) {
+                        byIp.putIfAbsent(t.getString("ip"), t);
                     }
                     JSArray arr = new JSArray();
                     for (JSObject t : byIp.values()) {
@@ -94,26 +90,60 @@ public class RokuDiscoverPlugin extends Plugin {
         });
     }
 
+    @PluginMethod
+    public void probe(PluginCall call) {
+        String ip = call.getString("ip");
+        if (ip == null || ip.isEmpty()) {
+            call.reject("ip required");
+            return;
+        }
+        getBridge().execute(() -> {
+            String name = fetchName(ip);
+            JSObject ret = new JSObject();
+            ret.put("ok", name != null);
+            ret.put("ip", ip);
+            if (name != null) ret.put("name", name);
+            call.resolve(ret);
+        });
+    }
+
     private List<JSObject> ssdpDiscover(int timeoutMs) {
         List<JSObject> found = new ArrayList<>();
         try {
-            DatagramSocket socket = new DatagramSocket();
+            DatagramSocket socket = new DatagramSocket(null);
             socket.setReuseAddress(true);
+            socket.bind(new InetSocketAddress(0));
             socket.setSoTimeout(300);
+            socket.setBroadcast(true);
+
             byte[] data = MSEARCH.getBytes(StandardCharsets.UTF_8);
             InetAddress group = InetAddress.getByName("239.255.255.250");
-            for (int i = 0; i < 3; i++) {
-                socket.send(new DatagramPacket(data, data.length, group, 1900));
-                Thread.sleep(80);
-            }
+
             long deadline = System.currentTimeMillis() + timeoutMs;
-            byte[] buf = new byte[8192];
+            long nextResend = System.currentTimeMillis();
+            byte[] buf = new byte[16384];
+
             while (System.currentTimeMillis() < deadline) {
+                if (System.currentTimeMillis() >= nextResend) {
+                    for (int i = 0; i < 2; i++) {
+                        socket.send(new DatagramPacket(data, data.length, group, 1900));
+                        Thread.sleep(40);
+                    }
+                    nextResend = System.currentTimeMillis() + 1000;
+                }
                 try {
                     DatagramPacket pkt = new DatagramPacket(buf, buf.length);
                     socket.receive(pkt);
                     String text = new String(pkt.getData(), 0, pkt.getLength(), StandardCharsets.UTF_8);
                     String ip = parseLocationIp(text);
+                    if (ip == null && pkt.getAddress() != null) {
+                        String sender = pkt.getAddress().getHostAddress();
+                        if (isPrivateIPv4(sender)
+                                && (text.toUpperCase().contains("ROKU")
+                                || text.toLowerCase().contains("roku:ecp"))) {
+                            ip = sender;
+                        }
+                    }
                     if (ip == null) continue;
                     boolean exists = false;
                     for (JSObject o : found) {
@@ -141,10 +171,28 @@ public class RokuDiscoverPlugin extends Plugin {
             if (line.regionMatches(true, 0, "LOCATION:", 0, 9)) {
                 String value = line.substring(9).trim();
                 Matcher m = Pattern.compile("https?://(\\d+\\.\\d+\\.\\d+\\.\\d+)").matcher(value);
-                if (m.find()) return m.group(1);
+                if (m.find()) {
+                    String ip = m.group(1);
+                    if (isPrivateIPv4(ip)) return ip;
+                }
             }
         }
         return null;
+    }
+
+    private boolean isPrivateIPv4(String ip) {
+        if (ip == null) return false;
+        String[] p = ip.split("\\.");
+        if (p.length != 4) return false;
+        try {
+            int a = Integer.parseInt(p[0]);
+            int b = Integer.parseInt(p[1]);
+            if (a == 10) return true;
+            if (a == 192 && b == 168) return true;
+            if (a == 172 && b >= 16 && b <= 31) return true;
+        } catch (NumberFormatException ignored) {
+        }
+        return false;
     }
 
     private String localPrefix() {
@@ -157,7 +205,7 @@ public class RokuDiscoverPlugin extends Plugin {
                     InetAddress a = ia.getAddress();
                     if (a.isLoopbackAddress() || !(a instanceof java.net.Inet4Address)) continue;
                     String ip = a.getHostAddress();
-                    if (ip != null && (ip.startsWith("192.168.") || ip.startsWith("10."))) {
+                    if (ip != null && isPrivateIPv4(ip)) {
                         String[] p = ip.split("\\.");
                         if (p.length == 4) return p[0] + "." + p[1] + "." + p[2];
                     }
@@ -178,7 +226,7 @@ public class RokuDiscoverPlugin extends Plugin {
         for (int n : hot) order.add(n);
         for (int i = 1; i < 255; i++) if (!order.contains(i)) order.add(i);
 
-        ExecutorService pool = Executors.newFixedThreadPool(32);
+        ExecutorService pool = Executors.newFixedThreadPool(40);
         for (int n : order) {
             final String ip = pre + "." + n;
             pool.execute(() -> {
