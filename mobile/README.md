@@ -1,46 +1,67 @@
-# TV Remote — iPhone / Android app
+# TV Remote — native iPhone / Android app
 
-Native shell so the phone can **find your Roku on Wi‑Fi like official apps**  
-(SSDP + Local Network). No physical remote needed — only power on the TV.
+## Why not just a website?
 
-## Why the website alone can’t do this
+Official apps (and open-source remotes like [Roam](https://github.com/msdrigg/Roam), [RoMote](https://github.com/wseemann/RoMote), [matthewdowney/roku](https://github.com/matthewdowney/roku)) find TVs with:
 
-Safari on a public HTTPS page is not allowed to search your LAN the way apps can.  
-Official remotes use **native Local Network + SSDP**. This app does the same.
+```
+SSDP M-SEARCH → 239.255.255.250:1900
+ST: roku:ecp
+→ LOCATION: http://192.168.x.x:8060/
+```
 
-## Install on your iPhone (free, personal device)
+Then they send ECP keys over HTTP.
 
-Needs a Mac with Xcode (you already have this machine).
+**Safari websites cannot send SSDP (no UDP) and iPhone blocks free LAN scanning from public HTTPS pages.**  
+A thin native shell fixes that — same UI, real discovery.
+
+## What we implemented
+
+| Piece | Role |
+|--------|------|
+| `RokuDiscoverPlugin` (iOS Swift) | SSDP `roku:ecp` + HTTP subnet fallback |
+| `RokuDiscoverPlugin` (Android Java) | Same + multicast lock |
+| `www/index.html` | Remote UI; calls `RokuDiscover.scan()` |
+| CapacitorHttp | Native HTTP for keys (no CORS) |
+| Info.plist / Manifest | Local Network + cleartext LAN HTTP |
+
+## Install on your iPhone (free personal build)
 
 ```bash
 cd ~/hisense-remote
 ./scripts/run-ios-app.sh
 ```
 
-Then in Xcode:
+In **Xcode**:
 
-1. Plug in your iPhone  
-2. Select your phone as the run destination  
-3. **Signing & Capabilities** → choose your Apple ID team (free account works)  
-4. Press **Run ▶**  
-5. On iPhone: Settings → General → VPN & Device Management → Trust your developer  
-6. Open **TV Remote**  
-7. When asked **Local Network** → **Allow**  
-8. Tap **Find my TV**
+1. Connect iPhone  
+2. Select device → **Signing** → your Apple ID  
+3. **Run ▶**  
+4. Phone: trust developer if asked  
+5. Open **TV Remote** → **Allow Local Network**  
+6. **Find my TV**
 
-## After install
+No App Store fee for installs on your own devices (free Apple ID).
 
-- Phone only, same Wi‑Fi as TV  
-- Power TV on  
-- **Find my TV** → SSDP finds it → control  
-
-No computer after the first install. No App Store fee for personal use.
-
-## Update the app UI later
+## Android
 
 ```bash
-cd ~/hisense-remote
-cp web/index.html web/manifest.webmanifest mobile/www/
-cd mobile && npx cap sync ios
-# Run again from Xcode
+cd ~/hisense-remote/mobile
+npm run android
+# open Android Studio → Run on device
 ```
+
+## Update UI after web changes
+
+```bash
+cd ~/hisense-remote/mobile
+# edit www/index.html (or copy from design)
+npx cap sync
+```
+
+## Research references
+
+- [Roku External Control API](https://developer.roku.com/docs/developer-program/dev-tools/external-control-api.md) — SSDP discovery  
+- [matthewdowney/roku RokuScan.java](https://github.com/matthewdowney/roku) — M-SEARCH pattern  
+- [grahamplata/roku-remote](https://github.com/grahamplata/roku-remote) — Go SSDP CLI  
+- [msdrigg/Roam](https://github.com/msdrigg/Roam) — production Swift Roku remote  

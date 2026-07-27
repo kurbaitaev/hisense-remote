@@ -1,47 +1,46 @@
-# TV Remote — free web remote for Roku
+# TV Remote — free Roku remote
+
+Control Roku / Hisense Roku TVs without a paid App Store remote.
+
+## How apps find TVs (research)
+
+Open-source and official remotes all use the same **Roku ECP discovery**:
+
+```
+UDP multicast SSDP
+  → 239.255.255.250:1900
+  → M-SEARCH … ST: roku:ecp
+  → response LOCATION: http://192.168.x.x:8060/
+```
+
+Then keys go to `http://TV-IP:8060/keypress/...`.
+
+Examples: [Roam](https://github.com/msdrigg/Roam), [RoMote](https://github.com/wseemann/RoMote), [matthewdowney/roku](https://github.com/matthewdowney/roku), [grahamplata/roku-remote](https://github.com/grahamplata/roku-remote).
+
+**Websites cannot do SSDP.** A native shell can. That’s what `mobile/` is.
+
+---
+
+## Use the phone app (finds TV like official apps)
+
+```bash
+cd ~/hisense-remote
+./scripts/run-ios-app.sh
+```
+
+1. Xcode → select your **iPhone** → **Run ▶**  
+2. Allow **Local Network**  
+3. Power TV on → **Find my TV**  
+
+Details: **[mobile/README.md](./mobile/README.md)**
+
+---
+
+## Website only (buttons; find limited on iPhone Safari)
 
 **https://kurbaitaev.github.io/hisense-remote/**
 
-Open the link on your phone → **Find my TV** → control it.  
-No App Store. No account. No Mac required for normal use.
-
-Only searches the **Wi‑Fi you’re on** — so each person finds **their** TV, not anyone else’s.
-
----
-
-## First time
-
-1. Phone on the **same Wi‑Fi** as the TV  
-2. Open **https://kurbaitaev.github.io/hisense-remote/**  
-3. Power the TV **on**  
-4. Tap **Find my TV**  
-5. If a popup asks for **Local Network** → **Allow**  
-6. Tap your TV when it appears  
-
-### iPhone — if Find finds nothing
-
-Safari often hides the switch here:
-
-**Settings → Privacy & Security → Local Network → turn ON for Safari**  
-(or for **TV Remote** if you used Add to Home Screen)
-
-Then open the link again → **Find my TV**.
-
-### Install on Home Screen
-
-- **iPhone:** Share → Add to Home Screen  
-- **Android:** ⋮ → Add to Home screen  
-
----
-
-## What you get
-
-| | |
-|--|--|
-| Find TV on this Wi‑Fi | ✅ (allow Local Network) |
-| D-pad, volume, apps | ✅ |
-| Type a title → play | ✅ |
-| Price | Free |
+Fine for control after you have an IP. Auto-find is unreliable in Safari (browser rules).
 
 ---
 

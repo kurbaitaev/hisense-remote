@@ -4,163 +4,105 @@
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
-<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
-<meta name="apple-mobile-web-app-title" content="TV Remote">
 <meta name="theme-color" content="#0a0a0f">
-<meta name="description" content="Free Roku remote. Find your TV on Wi‑Fi. No App Store.">
-<meta http-equiv="Permissions-Policy" content="local-network-access=*">
 <title>TV Remote</title>
-<link rel="manifest" href="manifest.webmanifest">
-<link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='14' fill='%2300b4d8'/%3E%3Crect x='12' y='18' width='40' height='28' rx='4' fill='none' stroke='%23041018' stroke-width='3'/%3E%3C/svg%3E">
 <style>
-:root {
-  --bg:#0a0a0f; --card:#14141f; --elev:#1c1c2a; --line:#2a2a3d;
-  --text:#f0f0f5; --muted:#8b8ba3; --accent:#00b4d8; --ok:#4ade80; --bad:#ff6b7a;
-  --safe-t:env(safe-area-inset-top,0px); --safe-b:env(safe-area-inset-bottom,0px);
+:root{
+  --bg:#0a0a0f;--card:#14141f;--elev:#1c1c2a;--line:#2a2a3d;
+  --text:#f4f4f8;--muted:#8b8ba3;--accent:#00b4d8;--ok:#4ade80;--bad:#ff6b7a;
+  --st:env(safe-area-inset-top,0px);--sb:env(safe-area-inset-bottom,0px);
 }
 *{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
 body{
-  font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);
-  min-height:100dvh;
-  background-image:radial-gradient(ellipse 80% 40% at 50% -10%,rgba(0,180,216,.16),transparent);
+  font-family:system-ui,-apple-system,sans-serif;background:var(--bg);color:var(--text);min-height:100dvh;
+  background-image:radial-gradient(ellipse 90% 45% at 50% -15%,rgba(0,180,216,.16),transparent);
   -webkit-user-select:none;user-select:none;
 }
-.app{max-width:400px;margin:0 auto;padding:calc(14px + var(--safe-t)) 16px calc(20px + var(--safe-b))}
+.app{max-width:400px;margin:0 auto;padding:calc(18px + var(--st)) 16px calc(22px + var(--sb))}
 .hidden{display:none!important}
-h1{font-size:1.35rem;font-weight:800;letter-spacing:-.03em;display:flex;align-items:center;gap:8px}
-.badge{font-size:.6rem;font-weight:800;text-transform:uppercase;letter-spacing:.06em;color:var(--ok);
+h1{font-size:1.4rem;font-weight:800;letter-spacing:-.03em;display:flex;gap:8px;align-items:center}
+.badge{font-size:.58rem;font-weight:800;letter-spacing:.07em;text-transform:uppercase;color:var(--ok);
   border:1px solid rgba(74,222,128,.4);background:rgba(74,222,128,.12);padding:3px 8px;border-radius:999px}
-.sub{color:var(--muted);font-size:.84rem;margin-top:4px;line-height:1.4}
+.sub{margin-top:5px;font-size:.85rem;color:var(--muted);line-height:1.4}
 .sub.ok{color:var(--ok)}
 .card{background:var(--card);border:1px solid var(--line);border-radius:18px;padding:18px;margin-top:14px}
-.card h2{font-size:1.02rem;font-weight:700;margin-bottom:6px}
-.card p{color:var(--muted);font-size:.86rem;line-height:1.5}
+.card h2{font-size:1.08rem;font-weight:700;margin-bottom:8px}
+.card p{font-size:.88rem;color:var(--muted);line-height:1.5}
 .btn{
-  display:block;width:100%;border:none;border-radius:14px;padding:16px;font:inherit;font-weight:700;
-  font-size:1rem;cursor:pointer;background:var(--accent);color:#041018;margin-top:12px
+  display:block;width:100%;margin-top:14px;padding:17px;border:0;border-radius:14px;
+  font:inherit;font-weight:800;font-size:1.05rem;cursor:pointer;background:var(--accent);color:#041018
 }
-.btn:active{transform:scale(.98);opacity:.92}
-.btn:disabled{opacity:.55}
-.btn.ghost{background:var(--elev);color:var(--text);border:1px solid var(--line)}
-.btn.sm{padding:12px;font-size:.9rem;margin-top:8px}
-.row{display:flex;gap:8px;align-items:center;margin-top:10px}
-input{
-  flex:1;min-width:0;padding:14px;border-radius:12px;border:1px solid var(--line);
-  background:var(--elev);color:var(--text);font:inherit;font-size:1.05rem;
-  -webkit-user-select:text;user-select:text
-}
-input:focus{outline:none;border-color:var(--accent)}
-.prefix{font-family:ui-monospace,monospace;color:var(--muted);font-size:.9rem;white-space:nowrap}
-.msg{margin-top:12px;font-size:.84rem;line-height:1.45;color:var(--muted)}
-.msg.error{color:var(--bad)}
-.msg.ok{color:var(--ok)}
+.btn:active{transform:scale(.98)}.btn:disabled{opacity:.55}
+.btn.ghost{background:var(--elev);color:var(--text);border:1px solid var(--line);font-weight:600}
+.btn.sm{width:auto;margin-top:0;padding:13px 16px;font-size:.9rem}
+.msg{margin-top:14px;font-size:.86rem;line-height:1.5;color:var(--muted);min-height:1.3em}
+.msg.ok{color:var(--ok)}.msg.err{color:var(--bad)}
 .spin{display:inline-block;width:14px;height:14px;border:2px solid var(--line);border-top-color:var(--accent);
-  border-radius:50%;animation:spin .7s linear infinite;vertical-align:-2px;margin-right:8px}
-@keyframes spin{to{transform:rotate(360deg)}}
-.tv-list{display:flex;flex-direction:column;gap:8px;margin-top:12px}
+  border-radius:50%;animation:sp .7s linear infinite;vertical-align:-2px;margin-right:8px}
+@keyframes sp{to{transform:rotate(360deg)}}
+.list{display:flex;flex-direction:column;gap:8px;margin-top:14px}
 .tv{
-  display:flex;align-items:center;gap:12px;width:100%;text-align:left;padding:14px;
+  display:flex;align-items:center;gap:12px;width:100%;padding:15px;text-align:left;
   background:var(--elev);border:1px solid var(--line);border-radius:14px;color:var(--text);font:inherit
 }
 .tv:active{border-color:var(--accent)}
-.tv .dot{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px rgba(74,222,128,.6);flex-shrink:0}
-.tv .meta{flex:1;min-width:0}
-.tv .n{font-weight:700;display:block}
-.tv .a{font-size:.78rem;color:var(--muted);font-family:ui-monospace,monospace}
-.tv .go{color:var(--accent);font-weight:800;font-size:.85rem}
-.numpad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;margin-top:12px}
-.numpad button{
-  padding:16px 0;font-size:1.25rem;font-weight:700;border-radius:12px;border:1px solid var(--line);
-  background:var(--elev);color:var(--text);font-family:inherit;cursor:pointer
-}
-.numpad button:active{transform:scale(.96)}
-.numpad .muted{color:var(--muted);font-size:1rem}
-.remote-keys{margin-top:12px}
+.dot{width:10px;height:10px;border-radius:50%;background:var(--ok);box-shadow:0 0 10px rgba(74,222,128,.55);flex-shrink:0}
+.meta{flex:1}.meta .n{font-weight:700;display:block}.meta .a{font-size:.78rem;color:var(--muted);font-family:ui-monospace,monospace;margin-top:2px}
+.go{color:var(--accent);font-weight:800;font-size:.85rem}
+.how{margin-top:12px;padding:12px;background:var(--elev);border-radius:12px;border:1px solid var(--line);font-size:.8rem;color:var(--muted);line-height:1.5}
+.how strong{color:var(--text)}
+.how ol{margin:8px 0 0 18px}
+.label{font-size:.68rem;font-weight:700;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);margin:2px 0 8px}
 .top,.media,.apps{display:grid;gap:8px;margin-bottom:12px}
-.top{grid-template-columns:repeat(4,1fr)}
-.media{grid-template-columns:repeat(4,1fr)}
-.apps{grid-template-columns:repeat(3,1fr)}
+.top,.media{grid-template-columns:repeat(4,1fr)}.apps{grid-template-columns:repeat(3,1fr)}
 .vol{display:flex;align-items:center;justify-content:center;gap:18px;margin-bottom:14px}
-.vol span{font-size:.68rem;color:var(--muted);text-transform:uppercase;letter-spacing:.08em;font-weight:700}
+.vol span{font-size:.68rem;font-weight:700;color:var(--muted);text-transform:uppercase;letter-spacing:.08em}
 .dpad{display:grid;grid-template-columns:repeat(3,1fr);grid-template-rows:repeat(3,68px);gap:8px;max-width:248px;margin:0 auto 14px}
 .dpad .u{grid-column:2;grid-row:1}.dpad .l{grid-column:1;grid-row:2}
-.dpad .o{grid-column:2;grid-row:2;background:linear-gradient(160deg,#1ad0f0,#0090b0);color:#041018;font-weight:800;box-shadow:0 4px 20px rgba(0,180,216,.35)}
+.dpad .o{grid-column:2;grid-row:2;background:linear-gradient(160deg,#1ad0f0,#0090b0);color:#041018;font-weight:800;box-shadow:0 4px 18px rgba(0,180,216,.35)}
 .dpad .r{grid-column:3;grid-row:2}.dpad .d{grid-column:2;grid-row:3}
-.k,.key-app{
-  padding:14px 0;min-height:48px;background:var(--elev);border:1px solid var(--line);border-radius:14px;
-  color:var(--text);font:inherit;font-size:1.05rem;font-weight:600;cursor:pointer
-}
-.key-app{font-size:.72rem}
-.k.power{color:var(--bad)}
-.k.pressed,.key-app.pressed{transform:scale(.94);border-color:var(--accent)}
+.k,.ka{min-height:48px;padding:14px 0;border-radius:14px;border:1px solid var(--line);background:var(--elev);color:var(--text);font:inherit;font-weight:600;font-size:1.05rem;cursor:pointer}
+.ka{font-size:.72rem}.k.power{color:var(--bad)}.pressed{transform:scale(.94);border-color:var(--accent)!important}
 .play-row{display:flex;gap:8px}
-.label{font-size:.68rem;text-transform:uppercase;letter-spacing:.08em;color:var(--muted);font-weight:700;margin:4px 0 8px}
-.toast{
-  position:fixed;left:50%;bottom:calc(18px + var(--safe-b));transform:translateX(-50%);
-  background:#1e1e2e;border:1px solid var(--line);color:#fff;padding:11px 16px;border-radius:999px;
-  font-size:.85rem;z-index:30;max-width:90vw;text-align:center;box-shadow:0 8px 28px rgba(0,0,0,.45)
-}
-.footer{margin-top:18px;text-align:center;font-size:.72rem;color:#55556a;line-height:1.4}
-.footer a{color:#6a6a80}
-.step-note{font-size:.8rem;color:var(--muted);line-height:1.45;margin-top:10px;padding:10px 12px;background:var(--elev);border-radius:12px;border:1px solid var(--line)}
-.step-note strong{color:var(--text)}
+input{flex:1;min-width:0;padding:14px;border-radius:12px;border:1px solid var(--line);background:var(--elev);color:var(--text);font:inherit;font-size:1.05rem;-webkit-user-select:text;user-select:text}
+input:focus{outline:none;border-color:var(--accent)}
+.toast{position:fixed;left:50%;bottom:calc(16px + var(--sb));transform:translateX(-50%);z-index:40;background:#1e1e2e;border:1px solid var(--line);color:#fff;padding:11px 16px;border-radius:999px;font-size:.85rem;max-width:90vw;text-align:center}
+.footer{margin-top:18px;text-align:center;font-size:.72rem;color:#55556a}
+.hidden{display:none!important}
 </style>
 </head>
 <body>
 <div class="app">
   <header>
     <h1>TV Remote <span class="badge">Free</span></h1>
-    <p id="status" class="sub">Same Wi‑Fi as your TV</p>
+    <p id="status" class="sub">Native discovery · like official apps</p>
   </header>
 
-  <div id="setup">
+  <section id="setup">
     <div class="card">
       <h2>Find your TV</h2>
-      <p>Power the TV on. Stay on the same Wi‑Fi. Tap the button — we’ll search for a Roku.</p>
+      <p>
+        Uses <strong style="color:var(--text)">SSDP</strong> (same as official Roku remotes).
+        Power the TV on · same Wi‑Fi · tap once.
+      </p>
       <button type="button" class="btn" id="find-btn">Find my TV</button>
       <p id="msg" class="msg"></p>
-      <div id="tv-list" class="tv-list hidden"></div>
-    </div>
-
-    <div class="card" id="manual-card">
-      <h2>Or enter the TV number</h2>
-      <p id="prefix-hint">We’ll fill your network. On the TV (if you can): Settings → Network → About → last number of the IP.</p>
-      <div class="row">
-        <span class="prefix" id="prefix">192.168.0.</span>
-        <input id="octet" inputmode="numeric" pattern="[0-9]*" maxlength="3" placeholder="154" style="max-width:100px;text-align:center;font-weight:800;font-size:1.2rem">
-      </div>
-      <div class="numpad" id="numpad">
-        <button type="button" data-n="1">1</button><button type="button" data-n="2">2</button><button type="button" data-n="3">3</button>
-        <button type="button" data-n="4">4</button><button type="button" data-n="5">5</button><button type="button" data-n="6">6</button>
-        <button type="button" data-n="7">7</button><button type="button" data-n="8">8</button><button type="button" data-n="9">9</button>
-        <button type="button" data-n="clear" class="muted">C</button>
-        <button type="button" data-n="0">0</button>
-        <button type="button" data-n="del" class="muted">⌫</button>
-      </div>
-      <button type="button" class="btn" id="connect-btn">Connect</button>
-      <details style="margin-top:12px">
-        <summary style="color:var(--muted);font-size:.8rem;cursor:pointer">Full IP address</summary>
-        <div class="row">
-          <input id="ip" inputmode="decimal" placeholder="192.168.0.154">
-          <button type="button" class="btn ghost sm" id="connect-full" style="width:auto;flex:0 0 auto">Go</button>
-        </div>
-      </details>
-      <div class="step-note" id="no-remote-tip">
-        <strong>No remote at all?</strong> On a laptop on this Wi‑Fi run
-        <code style="color:var(--accent)">./scripts/find-tv-for-phone.sh</code>
-        and scan the QR with your phone.
+      <div id="list" class="list hidden"></div>
+      <div class="how">
+        <strong>First launch:</strong> when iOS/Android asks for <strong>Local Network</strong>, tap <strong>Allow</strong>.
+        Without that, the app cannot see your Roku.
       </div>
     </div>
-  </div>
+  </section>
 
-  <div id="remote" class="hidden remote-keys">
+  <section id="remote" class="hidden">
     <div class="card">
       <div class="label">Play something</div>
       <div class="play-row">
-        <input id="play" placeholder="Movie or show…">
-        <button type="button" class="btn sm" id="play-btn" style="width:auto;flex:0 0 auto;margin-top:0">Play</button>
+        <input id="title" placeholder="Movie or show…">
+        <button type="button" class="btn sm" id="play">Play</button>
       </div>
-      <button type="button" id="change" style="background:none;border:none;color:var(--accent);font:inherit;font-size:.82rem;margin-top:10px;cursor:pointer">Change TV</button>
+      <button type="button" id="change" style="margin-top:10px;background:none;border:0;color:var(--accent);font:inherit;font-size:.82rem;cursor:pointer">Change TV</button>
     </div>
     <div class="top">
       <button class="k power" data-k="PowerOff" type="button">⏻</button>
@@ -188,285 +130,44 @@ input:focus{outline:none;border-color:var(--accent)}
     </div>
     <div class="label">Apps</div>
     <div class="apps">
-      <button class="key-app" data-app="12" type="button">Netflix</button>
-      <button class="key-app" data-app="837" type="button">YouTube</button>
-      <button class="key-app" data-app="13" type="button">Prime</button>
-      <button class="key-app" data-app="31440" type="button">Paramount+</button>
-      <button class="key-app" data-app="291097" type="button">Disney+</button>
-      <button class="key-app" data-app="2285" type="button">Hulu</button>
+      <button class="ka" data-app="12" type="button">Netflix</button>
+      <button class="ka" data-app="837" type="button">YouTube</button>
+      <button class="ka" data-app="13" type="button">Prime</button>
+      <button class="ka" data-app="31440" type="button">Paramount+</button>
+      <button class="ka" data-app="291097" type="button">Disney+</button>
+      <button class="ka" data-app="2285" type="button">Hulu</button>
     </div>
-  </div>
-
-  <p class="footer">Free · Add to Home Screen · works on your Wi‑Fi only<br>
-  <a href="https://github.com/kurbaitaev/hisense-remote">GitHub</a></p>
+  </section>
+  <p class="footer">SSDP + ECP · free · your Wi‑Fi only</p>
 </div>
 <div id="toast" class="toast hidden"></div>
 
 <script>
 const KEY = "roku-remote-ip";
 const $ = (id) => document.getElementById(id);
-const https = location.protocol === "https:";
-const COMMON = ["192.168.0","192.168.1","192.168.2","192.168.4","10.0.0","10.0.1"];
-let tv = "";
-let prefix = "192.168.0";
-let busy = false;
+let tv = "", busy = false;
 
-function toast(m, ms=2200) {
-  const t = $("toast");
-  t.textContent = m;
-  t.classList.remove("hidden");
+function toast(t, ms = 2200) {
+  const el = $("toast");
+  el.textContent = t;
+  el.classList.remove("hidden");
   clearTimeout(toast._t);
-  toast._t = setTimeout(() => t.classList.add("hidden"), ms);
+  toast._t = setTimeout(() => el.classList.add("hidden"), ms);
 }
-function setMsg(html, cls="") {
+function msg(html, cls = "") {
   const el = $("msg");
   el.className = "msg " + cls;
   el.innerHTML = html;
 }
-function setPrefix(p) {
-  prefix = p;
-  $("prefix").textContent = p + ".";
-  $("prefix-hint").textContent =
-    `Your network looks like ${p}.x — type only the last number from the TV IP.`;
-}
-function abortMs(ms) {
-  try { return AbortSignal.timeout(ms); }
-  catch {
-    const c = new AbortController();
-    setTimeout(() => c.abort(), ms);
-    return c.signal;
-  }
-}
-
-function ipFromQuery() {
+function isNative() {
   try {
-    const ip = new URL(location.href).searchParams.get("ip") || "";
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) return ip;
-  } catch {}
-  return "";
+    return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform());
+  } catch { return false; }
 }
 
-/** Detect Wi‑Fi /24 via WebRTC (works without Local Network on many phones). */
-function detectPrefix() {
-  return new Promise((resolve) => {
-    const found = [];
-    const seen = new Set();
-    const add = (ip) => {
-      if (!ip || ip.startsWith("127.") || ip.startsWith("169.254.")) return;
-      const parts = ip.split(".");
-      if (parts.length !== 4) return;
-      const pre = parts.slice(0, 3).join(".");
-      if (seen.has(pre)) return;
-      seen.add(pre);
-      found.push(pre);
-    };
-    try {
-      const pc = new RTCPeerConnection({ iceServers: [{ urls: "stun:stun.l.google.com:19302" }] });
-      pc.createDataChannel("x");
-      pc.onicecandidate = (e) => {
-        if (!e.candidate) return;
-        const raw = e.candidate.candidate || "";
-        (raw.match(/\b(\d{1,3}\.){3}\d{1,3}\b/g) || []).forEach(add);
-        if (e.candidate.address) add(e.candidate.address);
-      };
-      pc.createOffer().then((o) => pc.setLocalDescription(o)).catch(() => {});
-      setTimeout(() => {
-        try { pc.close(); } catch {}
-        const list = found.length ? found : COMMON.slice();
-        COMMON.forEach((c) => { if (!seen.has(c)) list.push(c); });
-        resolve(list);
-      }, 1600);
-    } catch {
-      resolve(COMMON.slice());
-    }
-  });
-}
-
-/** True when running inside the iPhone/Android app (Capacitor). */
-function isNativeApp() {
-  try {
-    return !!(window.Capacitor && window.Capacitor.isNativePlatform && window.Capacitor.isNativePlatform());
-  } catch {
-    return false;
-  }
-}
-
-/**
- * Native discovery (like official remote apps):
- * SSDP multicast + HTTP subnet scan via iOS/Android networking (no browser CORS).
- * First launch: iOS shows “Local Network” → Allow.
- */
-async function findViaNative() {
-  if (!isNativeApp()) return null;
-  const plugin = window.Capacitor?.Plugins?.RokuDiscover;
-  if (!plugin || typeof plugin.scan !== "function") {
-    // CapacitorHttp path — native fetch, no CORS
-    return findViaCapacitorHttp();
-  }
-  try {
-    setMsg(`<span class="spin"></span>Searching Wi‑Fi for Roku (like the official app)…`);
-    const res = await plugin.scan();
-    const tvs = (res && res.tvs) || [];
-    return tvs.map((t) => ({
-      ip: t.ip,
-      name: t.name || "Roku TV",
-    }));
-  } catch (e) {
-    console.warn("native scan failed", e);
-    return findViaCapacitorHttp();
-  }
-}
-
-/** Native HTTP GET (CapacitorHttp) — works on LAN without CORS. */
-async function findViaCapacitorHttp() {
-  const Http = window.Capacitor?.Plugins?.CapacitorHttp;
-  if (!Http) return null;
-  const prefixes = await detectPrefix();
-  const pre = prefixes[0] || prefix;
-  setPrefix(pre);
-  const found = [];
-  const seen = new Set();
-  const order = octetOrder();
-  const batch = 24;
-  for (let i = 0; i < order.length; i += batch) {
-    setMsg(`<span class="spin"></span>Scanning ${pre}.x … ${Math.round((i / order.length) * 100)}%`);
-    const slice = order.slice(i, i + batch);
-    await Promise.all(slice.map(async (n) => {
-      const ip = `${pre}.${n}`;
-      try {
-        const res = await Http.get({
-          url: `http://${ip}:8060/query/device-info`,
-          connectTimeout: 500,
-          readTimeout: 500,
-          responseType: "text",
-        });
-        const data = typeof res.data === "string" ? res.data : String(res.data || "");
-        if (res.status === 200 && /device-info|roku|serial-number/i.test(data)) {
-          if (seen.has(ip)) return;
-          seen.add(ip);
-          const name =
-            (data.match(/<friendly-device-name>([^<]+)/) ||
-              data.match(/<model-name>([^<]+)/) ||
-              [])[1] || "Roku TV";
-          found.push({ ip, name: name.trim() });
-          renderList(found);
-        }
-      } catch {}
-    }));
-    if (found.length) break;
-  }
-  return found;
-}
-
-/** Server-side discovery when page is served from home bridge (works reliably). */
-async function findViaServer() {
-  try {
-    const r = await fetch("/api/scan?platform=roku", { signal: abortMs(10000) });
-    if (!r.ok) return null;
-    const d = await r.json();
-    const tvs = d.tvs || [];
-    if (!tvs.length) return [];
-    return tvs.map((t) => ({
-      ip: t.ip,
-      name: t.name || t.model || "Roku TV",
-    }));
-  } catch {
-    return null; // API not available (e.g. GitHub Pages)
-  }
-}
-
-function lanGet(url, ms=800) {
-  const opts = {
-    method: "GET",
-    mode: "no-cors",
-    cache: "no-store",
-    signal: abortMs(ms),
-  };
-  if (https) opts.targetAddressSpace = "local";
-  return fetch(url, opts);
-}
-
-async function probe(ip) {
-  // no-cors: success = something answered on :8060 (Roku has no CORS body access)
-  try {
-    await lanGet(`http://${ip}:8060/query/device-info`, 750);
-    return { ip, name: "Roku TV" };
-  } catch {
-    /* try websocket */
-  }
-  try {
-    const ok = await new Promise((resolve) => {
-      let done = false;
-      const fin = (v) => { if (!done) { done = true; try { ws.close(); } catch {} resolve(v); } };
-      let ws;
-      try {
-        ws = new WebSocket(`ws://${ip}:8060/`);
-        ws.onopen = () => fin(true);
-        ws.onerror = () => fin(false);
-        setTimeout(() => fin(false), 700);
-      } catch { fin(false); }
-    });
-    if (ok) return { ip, name: "Roku TV" };
-  } catch {}
-  return null;
-}
-
-function octetOrder() {
-  const pri = [100,101,102,150,151,152,153,154,155,160,10,20,50,2,3,4,5,1,254,200,110,120];
-  const rest = [];
-  for (let i = 1; i < 255; i++) if (!pri.includes(i)) rest.push(i);
-  return pri.concat(rest);
-}
-
-async function findViaBrowser(prefixes) {
-  const found = [];
-  const seen = new Set();
-  const add = (h) => {
-    if (!h || seen.has(h.ip)) return;
-    seen.add(h.ip);
-    found.push(h);
-    renderList(found);
-  };
-
-  // Request local-network permission (Chrome) with user gesture already held
-  try {
-    await lanGet(`http://${prefixes[0] || prefix}.1/`, 1000);
-  } catch {}
-
-  const saved = localStorage.getItem(KEY);
-  if (saved) add(await probe(saved));
-
-  // Scan first prefix fully (phone's network) — not every common subnet
-  const pre = prefixes[0] || prefix;
-  setPrefix(pre);
-  const order = octetOrder();
-  const batch = 16;
-  for (let i = 0; i < order.length; i += batch) {
-    if (found.length) break; // stop at first hit for speed; user can rescan
-    const slice = order.slice(i, i + batch);
-    setMsg(`<span class="spin"></span>Searching ${pre}.${slice[0]}–${slice[slice.length-1]}…`);
-    await Promise.all(slice.map(async (n) => add(await probe(`${pre}.${n}`))));
-  }
-
-  // If nothing, light scan of second prefix
-  if (!found.length && prefixes[1]) {
-    const pre2 = prefixes[1];
-    setMsg(`<span class="spin"></span>Trying ${pre2}.x…`);
-    for (const n of octetOrder().slice(0, 40)) {
-      add(await probe(`${pre2}.${n}`));
-      if (found.length) break;
-    }
-  }
-  return found;
-}
-
-function renderList(list) {
-  const box = $("tv-list");
-  if (!list.length) {
-    box.classList.add("hidden");
-    box.innerHTML = "";
-    return;
-  }
+function showList(list) {
+  const box = $("list");
+  if (!list.length) { box.classList.add("hidden"); box.innerHTML = ""; return; }
   box.classList.remove("hidden");
   box.innerHTML = "";
   list.forEach((item) => {
@@ -474,8 +175,8 @@ function renderList(list) {
     b.type = "button";
     b.className = "tv";
     b.innerHTML = `<span class="dot"></span><span class="meta"><span class="n"></span><span class="a"></span></span><span class="go">Open</span>`;
-    b.querySelector(".n").textContent = item.name;
-    b.querySelector(".a").textContent = item.ip;
+    b.querySelector(".n").textContent = item.name || "Roku TV";
+    b.querySelector(".a").textContent = item.ip + (item.via ? " · " + item.via : "");
     b.onclick = () => connect(item.ip, item.name);
     box.appendChild(b);
   });
@@ -491,191 +192,138 @@ function connect(ip, name) {
   toast("Connected");
 }
 
+/** Official-style discovery via native SSDP plugin */
+async function nativeScan() {
+  const plugin = window.Capacitor?.Plugins?.RokuDiscover;
+  if (!plugin?.scan) throw new Error("RokuDiscover plugin missing — rebuild the app");
+  const res = await plugin.scan();
+  return (res.tvs || []).map((t) => ({
+    ip: t.ip,
+    name: t.name || "Roku TV",
+    via: t.via || "ssdp",
+  }));
+}
+
 async function findMyTv() {
   if (busy) return;
   busy = true;
   $("find-btn").disabled = true;
   $("find-btn").textContent = "Searching…";
-  setMsg(`<span class="spin"></span>Looking for Roku on your Wi‑Fi…`);
-  renderList([]);
+  msg(`<span class="spin"></span>SSDP search for Roku on this Wi‑Fi…`);
+  showList([]);
 
-  let list = null;
-
-  // 1) Native iPhone/Android app — SSDP like official remotes (works, phone-only)
-  list = await findViaNative();
-  if (list && list.length) {
-    finishFind(list);
-    return;
+  let list = [];
+  try {
+    if (!isNative()) {
+      msg("Open this inside the <strong style='color:var(--text)'>TV Remote app</strong> (not Safari). Websites cannot SSDP-scan like apps.", "err");
+    } else {
+      list = await nativeScan();
+    }
+  } catch (e) {
+    msg("Scan failed: " + (e.message || e) + "<br>Allow <strong style='color:var(--text)'>Local Network</strong> in Settings, then try again.", "err");
   }
 
-  // 2) Home server API (http://computer:8080/remote)
-  list = await findViaServer();
-  if (list && list.length) {
-    finishFind(list);
-    return;
-  }
-
-  // 3) Browser scan (limited on Safari website; better in Chrome / native app)
-  const prefixes = await detectPrefix();
-  if (prefixes[0]) setPrefix(prefixes[0]);
-  list = await findViaBrowser(prefixes);
-  finishFind(list || []);
-}
-
-function finishFind(list) {
   busy = false;
   $("find-btn").disabled = false;
   $("find-btn").textContent = "Find my TV again";
-  renderList(list);
+  showList(list);
 
   if (list.length === 1) {
-    setMsg(`Found ${list[0].name} (${list[0].ip})`, "ok");
+    msg(`Found ${list[0].name}`, "ok");
     connect(list[0].ip, list[0].name);
   } else if (list.length > 1) {
-    setMsg(`Found ${list.length} TVs — tap one`, "ok");
-  } else {
-    const nativeHint = isNativeApp()
-      ? "Allow <strong style='color:var(--text)'>Local Network</strong> when iOS asks, then try again. Power the TV on."
-      : "Safari websites cannot scan Wi‑Fi like apps. Install the free <strong style='color:var(--text)'>TV Remote</strong> app from this project (Xcode → Run on your iPhone), or use the number pad if you know the IP.";
-    setMsg(
-      "No Roku found yet.<br>" + nativeHint,
-      "error",
+    msg(`Found ${list.length} TVs — tap one`, "ok");
+  } else if (isNative()) {
+    msg(
+      "No Roku found.<br>" +
+      "• Power the TV on<br>" +
+      "• Same Wi‑Fi as this phone<br>" +
+      "• Settings → Privacy → <strong style='color:var(--text)'>Local Network</strong> → ON for TV Remote",
+      "err",
     );
   }
 }
 
 function ecpPost(ip, path) {
+  // Native HTTP when CapacitorHttp is enabled; else no-cors / form
   const url = `http://${ip}:8060${path}`;
-  if (!https) {
-    return fetch(url, { method: "POST", signal: abortMs(4000) });
+  if (window.Capacitor?.Plugins?.CapacitorHttp) {
+    return Capacitor.Plugins.CapacitorHttp.request({
+      url,
+      method: "POST",
+      connectTimeout: 4000,
+      readTimeout: 4000,
+    });
   }
-  return new Promise((resolve) => {
-    const frame = document.createElement("iframe");
-    frame.name = "ecp_" + Date.now();
-    frame.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0";
-    document.body.appendChild(frame);
-    const form = document.createElement("form");
-    form.method = "POST";
-    form.action = url;
-    form.target = frame.name;
-    document.body.appendChild(form);
-    form.submit();
-    setTimeout(() => { form.remove(); frame.remove(); resolve({ ok: true, status: 200 }); }, 350);
+  return fetch(url, { method: "POST", mode: "no-cors", cache: "no-store" }).catch(() => {
+    return new Promise((resolve) => {
+      const frame = document.createElement("iframe");
+      frame.name = "e" + Date.now();
+      frame.style.cssText = "position:fixed;width:0;height:0;border:0;opacity:0";
+      document.body.appendChild(frame);
+      const form = document.createElement("form");
+      form.method = "POST"; form.action = url; form.target = frame.name;
+      document.body.appendChild(form);
+      form.submit();
+      setTimeout(() => { form.remove(); frame.remove(); resolve({}); }, 350);
+    });
   });
 }
 
-function pressFx(el) {
+function press(el) {
   el.classList.add("pressed");
-  setTimeout(() => el.classList.remove("pressed"), 100);
-  if (navigator.vibrate) navigator.vibrate(8);
+  setTimeout(() => el.classList.remove("pressed"), 90);
+  if (navigator.vibrate) navigator.vibrate(6);
 }
 
-// Keys
 document.querySelectorAll("[data-k]").forEach((b) => {
   b.onclick = async () => {
     if (!tv) return;
-    pressFx(b);
-    try {
-      const r = await ecpPost(tv, `/keypress/${b.dataset.k}`);
-      if (r && r.status === 403) toast("Enable Control by mobile apps on the TV");
-    } catch {
-      toast("Failed — same Wi‑Fi?");
-    }
+    press(b);
+    try { await ecpPost(tv, `/keypress/${b.dataset.k}`); }
+    catch { toast("Key failed"); }
   };
 });
 document.querySelectorAll("[data-app]").forEach((b) => {
   b.onclick = async () => {
     if (!tv) return;
-    pressFx(b);
-    try { await ecpPost(tv, `/launch/${b.dataset.app}`); } catch { toast("Launch failed"); }
+    press(b);
+    try { await ecpPost(tv, `/launch/${b.dataset.app}`); }
+    catch { toast("Launch failed"); }
   };
 });
 
 $("find-btn").onclick = () => findMyTv();
-
-$("connect-btn").onclick = () => {
-  const n = parseInt($("octet").value, 10);
-  if (!n || n < 1 || n > 254) {
-    setMsg("Enter the last number of the TV IP (1–254).", "error");
-    return;
-  }
-  connect(`${prefix}.${n}`, "Roku TV");
-};
-$("connect-full").onclick = () => {
-  const ip = $("ip").value.trim();
-  if (!/^\d{1,3}(\.\d{1,3}){3}$/.test(ip)) {
-    setMsg("Enter a full IP like 192.168.0.154", "error");
-    return;
-  }
-  connect(ip, "Roku TV");
-};
-$("octet").addEventListener("keydown", (e) => {
-  if (e.key === "Enter") $("connect-btn").click();
-});
-
-document.querySelectorAll("#numpad [data-n]").forEach((b) => {
-  b.onclick = () => {
-    const n = b.dataset.n;
-    const input = $("octet");
-    if (n === "clear") input.value = "";
-    else if (n === "del") input.value = input.value.slice(0, -1);
-    else if (input.value.length < 3) input.value += n;
-    if (navigator.vibrate) navigator.vibrate(5);
-  };
-});
-
-$("play-btn").onclick = async () => {
-  const t = $("play").value.trim();
+$("play").onclick = async () => {
+  const t = $("title").value.trim();
   if (!t || !tv) return;
-  toast(`Searching “${t}”…`, 3000);
+  toast(`Searching “${t}”…`);
   try {
-    await ecpPost(
-      tv,
-      `/search/browse?title=${encodeURIComponent(t)}&provider-id=12,13,31440,291097,2285,837&launch=true&match-any=true`,
-    );
-  } catch {
-    toast("Search failed");
-  }
+    await ecpPost(tv, `/search/browse?title=${encodeURIComponent(t)}&provider-id=12,13,31440,291097,2285,837&launch=true&match-any=true`);
+  } catch { toast("Search failed"); }
 };
-
 $("change").onclick = () => {
   tv = "";
   $("remote").classList.add("hidden");
   $("setup").classList.remove("hidden");
-  $("status").textContent = "Same Wi‑Fi as your TV";
+  $("status").textContent = "Native discovery · like official apps";
   $("status").classList.remove("ok");
-  setMsg("");
-  renderList([]);
+  msg("");
+  showList([]);
 };
 
-// Boot
+// Auto-find on launch when native
 (async () => {
-  const q = ipFromQuery();
-  if (q) {
-    connect(q, "Roku TV");
-    try { history.replaceState({}, "", location.pathname); } catch {}
-    return;
-  }
   const saved = localStorage.getItem(KEY);
-  const prefixes = await detectPrefix();
-  if (prefixes[0]) setPrefix(prefixes[0]);
-
-  // If home server available, auto-find immediately
-  const serverList = await findViaServer();
-  if (serverList && serverList.length === 1) {
-    connect(serverList[0].ip, serverList[0].name);
-    return;
+  if (saved && isNative()) {
+    // Still re-scan so moved TVs are found; show saved as fallback
+    msg("Tap Find my TV (auto-search uses SSDP like official apps)");
   }
-  if (serverList && serverList.length > 1) {
-    setMsg(`Found ${serverList.length} TVs — tap one`, "ok");
-    renderList(serverList);
-    return;
-  }
-
-  // Saved IP: reconnect without re-search
-  if (saved) {
-    setMsg(`Reconnect to saved TV ${saved}?`);
-    renderList([{ ip: saved, name: "Saved TV" }]);
+  if (isNative()) {
+    // slight delay so Local Network prompt can attach to first scan
+    setTimeout(() => findMyTv(), 400);
+  } else {
+    msg("Install the iOS/Android app for SSDP discovery. Safari websites cannot scan like apps.", "err");
   }
 })();
 </script>
