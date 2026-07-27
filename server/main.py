@@ -11,7 +11,7 @@ from pathlib import Path
 from typing import Any
 
 from fastapi import FastAPI, File, Form, HTTPException, UploadFile
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, HTMLResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
@@ -137,10 +137,66 @@ async def find_tv_page():
     return FileResponse(STATIC_DIR / "find.html")
 
 
+async def _discover_tvs_for_page() -> list[dict[str, Any]]:
+    """Find Rokus on LAN (server-side — works even when phone browser cannot scan)."""
+    try:
+        from server.discovery import discover_tvs
+
+        tvs = await discover_tvs(platform="roku", timeout=4.0)
+        return [
+            {
+                "ip": t.get("ip", ""),
+                "name": t.get("name") or t.get("model") or "Roku TV",
+            }
+            for t in tvs
+            if t.get("ip")
+        ]
+    except Exception:
+        # Fall back to saved config host
+        host = config.get("host")
+        if host and config.get("platform") == "roku":
+            try:
+                if await probe_roku(host, timeout=2.0):
+                    return [{"ip": host, "name": "Roku TV"}]
+            except Exception:
+                pass
+        return []
+
+
 @app.get("/remote")
 async def public_remote():
-    """Polished free remote (same as web/) with /api/scan when on this server."""
-    return FileResponse(ROOT / "web" / "index.html")
+    """
+    Phone remote. TV list is discovered on the Mac and injected into the page
+    so the phone does not need to scan Wi‑Fi itself (Safari cannot).
+    """
+    html = (ROOT / "web" / "index.html").read_text(encoding="utf-8")
+    tvs = await _discover_tvs_for_page()
+    inject = (
+        "<script>"
+        f"window.__PREFOUND_TVS__={json.dumps(tvs)};"
+        f"window.__SERVER_FIND__=true;"
+        "</script>"
+    )
+    if "</head>" in html:
+        html = html.replace("</head>", inject + "\n</head>", 1)
+    else:
+        html = inject + html
+    return HTMLResponse(
+        html,
+        headers={
+            "Cache-Control": "no-store, no-cache, must-revalidate",
+            "Pragma": "no-cache",
+        },
+    )
+
+
+@app.get("/go")
+async def go_to_tv():
+    """One-tap: find TV on server, redirect phone into remote with ?ip=."""
+    tvs = await _discover_tvs_for_page()
+    if not tvs:
+        return RedirectResponse("/find", status_code=302)
+    return RedirectResponse(f"/remote?ip={tvs[0]['ip']}", status_code=302)
 
 
 @app.get("/api/share")
