@@ -1,86 +1,47 @@
 # TV Remote — free web remote for Roku
 
-Everyone uses the **same web app**.  
-It only sees TVs on **the Wi‑Fi your phone is on** — so each person controls **their own** TV, never yours.
-
-```
-Phone on home Wi‑Fi ──► finds Roku on that Wi‑Fi only
-```
-
----
-
-## How other people use it (their TV)
-
-### Option A — Guaranteed auto-find (recommended)
-
-Someone at their house runs a tiny server **once** on any PC/Pi/Mac that stays on the home Wi‑Fi:
-
-```bash
-git clone https://github.com/kurbaitaev/hisense-remote.git
-cd hisense-remote
-docker compose up -d --build
-# or without Docker:
-#   python3 -m venv .venv && source .venv/bin/activate
-#   pip install -r requirements.txt && ./start.sh
-```
-
-Then **on their phone** (same Wi‑Fi):
-
-```
-http://<that-computer-ip>:8080/remote
-```
-
-or one-tap:
-
-```
-http://<that-computer-ip>:8080/go
-```
-
-The **computer** searches the network (like official apps).  
-The **phone** only opens the page — and connects to **their** Roku automatically.
-
-That’s the same path that works for you.
-
-### Option B — Public website only (no server)
-
 **https://kurbaitaev.github.io/hisense-remote/**
 
-1. Same Wi‑Fi as **their** TV  
-2. Tap **Find my TV**  
-3. Phone tries to scan **their** network  
+Open the link on your phone → **Find my TV** → control it.  
+No App Store. No account. No Mac required for normal use.
 
-Works better on some Androids.  
-**iPhone Safari often blocks Wi‑Fi scanning** from public websites — then use the number pad (last part of the IP) or Option A.
+Only searches the **Wi‑Fi you’re on** — so each person finds **their** TV, not anyone else’s.
 
 ---
 
-## Important: not your TV
+## First time
 
-| Person | Opens app on | Finds |
-|--------|----------------|--------|
-| You at home | Your Wi‑Fi | Your Roku |
-| Friend at their home | Their Wi‑Fi | Their Roku |
+1. Phone on the **same Wi‑Fi** as the TV  
+2. Open **https://kurbaitaev.github.io/hisense-remote/**  
+3. Power the TV **on**  
+4. Tap **Find my TV**  
+5. If a popup asks for **Local Network** → **Allow**  
+6. Tap your TV when it appears  
 
-Private IPs like `192.168.0.154` can look the same in every house — that’s normal.  
-They’re only reachable **inside that house**.
+### iPhone — if Find finds nothing
 
----
+Safari often hides the switch here:
 
-## First time for you (right now)
+**Settings → Privacy & Security → Local Network → turn ON for Safari**  
+(or for **TV Remote** if you used Add to Home Screen)
 
-Phone on your Wi‑Fi, Mac server running:
+Then open the link again → **Find my TV**.
 
-**http://192.168.0.10:8080/remote**  
-or **http://192.168.0.10:8080/go**
-
----
-
-## Install on Home Screen
+### Install on Home Screen
 
 - **iPhone:** Share → Add to Home Screen  
 - **Android:** ⋮ → Add to Home screen  
 
-No App Store. No mic required.
+---
+
+## What you get
+
+| | |
+|--|--|
+| Find TV on this Wi‑Fi | ✅ (allow Local Network) |
+| D-pad, volume, apps | ✅ |
+| Type a title → play | ✅ |
+| Price | Free |
 
 ---
 
