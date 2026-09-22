@@ -1,8 +1,8 @@
-fastapi>=0.115.0
-uvicorn[standard]>=0.32.0
+fastapi>=0.141.1
+uvicorn[standard]>=0.53.0
 paho-mqtt>=2.1.0
-httpx>=0.28.0
-pydantic>=2.10.0
-zeroconf>=0.143.0
-websockets>=14.0
-python-multipart>=0.0.9
+httpx>=0.28.1
+pydantic>=2.13.5
+zeroconf>=0.151.3
+websockets>=17.1
+python-multipart>=0.0.32

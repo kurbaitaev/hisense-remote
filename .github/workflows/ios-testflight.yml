@@ -1,0 +1,89 @@
+name: iOS TestFlight
+
+# Archives the iOS app, signs it and uploads it to TestFlight.
+#
+# One-time setup (Settings → Secrets and variables → Actions):
+#   APPLE_TEAM_ID           Team ID (App Store Connect → Membership details)
+#   ASC_KEY_ID              App Store Connect API key ID
+#   ASC_ISSUER_ID           App Store Connect API issuer ID
+#   ASC_KEY_P8              Contents of AuthKey_<KEY_ID>.p8 (the whole file, as text)
+#   IOS_DIST_CERT_P12       Apple Distribution certificate + private key, base64 (`base64 -i cert.p12`)
+#   IOS_DIST_CERT_PASSWORD  Password used when exporting the .p12
+#
+# The API key needs the "App Manager" role (or Admin) so xcodebuild can create
+# the provisioning profile automatically. The app record (bundle ID
+# com.tvremote.free) must already exist in App Store Connect.
+
+on:
+  workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: "Version shown to testers (e.g. 1.0.1). Leave empty to keep the project value."
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Archive and upload
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
+      ASC_ISSUER_ID: ${{ secrets.ASC_ISSUER_ID }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secrets
+        run: |
+          missing=""
+          for v in APPLE_TEAM_ID ASC_KEY_ID ASC_ISSUER_ID; do
+            [ -n "${!v}" ] || missing="$missing $v"
+          done
+          [ -n "${{ secrets.ASC_KEY_P8 }}" ] || missing="$missing ASC_KEY_P8"
+          [ -n "${{ secrets.IOS_DIST_CERT_P12 }}" ] || missing="$missing IOS_DIST_CERT_P12"
+          if [ -n "$missing" ]; then
+            echo "::error::Missing repository secrets:$missing (see the header of this workflow file)"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Install Apple Distribution certificate
+        uses: apple-actions/import-codesign-certs@v3
+        with:
+          p12-file-base64: ${{ secrets.IOS_DIST_CERT_P12 }}
+          p12-password: ${{ secrets.IOS_DIST_CERT_PASSWORD }}
+
+      - name: Write App Store Connect API key
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s' "${{ secrets.ASC_KEY_P8 }}" > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          echo "ASC_KEY_PATH=$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8" >> "$GITHUB_ENV"
+
+      - name: Archive and upload to TestFlight
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          MARKETING_VERSION: ${{ github.event.inputs.marketing_version }}
+        run: ./scripts/testflight.sh
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-testflight-logs
+          path: |
+            mobile/ios/build/archive.log
+            mobile/ios/build/export.log
+          if-no-files-found: ignore
