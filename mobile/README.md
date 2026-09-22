@@ -63,36 +63,40 @@ On the Roku / Hisense Roku:
 
 ## TestFlight (share the iPhone app with other people)
 
-TestFlight needs a **paid Apple Developer Program** membership ($99/year). A free Apple ID can only install on your own phone via Xcode (section above).
+Same pipeline as the Rize app: no Xcode IDE, no EAS, no cloud signing. Everything is driven by the App Store Connect API key you already have.
 
-One-time setup in [App Store Connect](https://appstoreconnect.apple.com):
+| Setting | Value (defaults baked into the scripts) |
+|---------|------------------------------------------|
+| Team ID | `A58FFUY6DF` |
+| Bundle ID | `com.kurbaitaev.tvremote` |
+| API key | `~/.appstoreconnect/private_keys/AuthKey_AQZ687BDBN.p8` (the Rize key) |
+| Profile | `TV Remote App Store` (created automatically) |
 
-1. **Certificates, IDs & Profiles → Identifiers** → register App ID `com.tvremote.free`
-2. **Apps → +** → New App → bundle ID `com.tvremote.free`, name "TV Remote"
-3. Note your **Team ID** (Membership details)
+**One manual step, once:** App Store Connect → **Apps → + → New App** → iOS, name "TV Remote", bundle ID `com.kurbaitaev.tvremote` (register it under **Identifiers** first if the dropdown does not list it, or just run the script once — it registers the bundle ID through the API), SKU `tvremote`. Apple exposes no API for creating the app record, so this is the only click required.
 
 ### From your Mac
 
 ```bash
 cd ~/hisense-remote
-APPLE_TEAM_ID=ABCDE12345 ./scripts/testflight.sh
+./scripts/testflight.sh
 ```
 
-The script runs `cap sync`, archives a Release build with automatic signing (uses the Apple ID signed in to Xcode → Settings → Accounts), and uploads it. The build shows up in App Store Connect → TestFlight after Apple processes it (5–15 min). Add testers there (internal testers need no review; external testers need a short Beta App Review).
+What it does:
 
-Options: `BUILD_NUMBER=42` (default: timestamp), `MARKETING_VERSION=1.0.1`, `SKIP_UPLOAD=1` (writes `mobile/ios/build/App.ipa` instead of uploading).
+1. `scripts/apple_signing.py` registers the bundle ID if needed, finds the Apple Distribution certificate already in your keychain (the one Rize uses), and creates + installs an App Store provisioning profile for TV Remote.
+2. `cap sync ios`, then an **unsigned** archive with the release Xcode command-line tools (`/Applications/Xcode.app`; override with `DEVELOPER_DIR`). Automatic signing is avoided on purpose — it fails on a team with no registered devices.
+3. Export a signed `.ipa` with that certificate + profile.
+4. `xcrun altool --upload-app` with the API key.
+
+The build shows up in App Store Connect → TestFlight after processing (5–15 min). Internal testers need no review; external testers need a short Beta App Review.
+
+Options: `SKIP_UPLOAD=1` (just produce `mobile/ios/build/export/App.ipa`), `BUILD_NUMBER=42` (default: timestamp), `MARKETING_VERSION=1.0.1`, `CREATE_CERT=1` (make a new distribution certificate through the API if the keychain has none).
 
 ### From GitHub Actions (no Mac needed)
 
-The **iOS TestFlight** workflow (`.github/workflows/ios-testflight.yml`) does the same on a macOS runner. Run it from the **Actions** tab (or push a `v*` tag) after adding these repository secrets:
+The **iOS TestFlight** workflow (`.github/workflows/ios-testflight.yml`) runs the same script on a macOS runner. It needs one repository secret, `ASC_KEY_P8`, containing the text of `AuthKey_AQZ687BDBN.p8`. Run it from the **Actions** tab or push a `v*` tag. The build number is the workflow run number.
 
-| Secret | Where to get it |
-|--------|-----------------|
-| `APPLE_TEAM_ID` | App Store Connect → Membership details |
-| `ASC_KEY_ID`, `ASC_ISSUER_ID`, `ASC_KEY_P8` | Users and Access → Integrations → App Store Connect API → generate key (role **App Manager**). `ASC_KEY_P8` is the text of the downloaded `.p8` file |
-| `IOS_DIST_CERT_P12`, `IOS_DIST_CERT_PASSWORD` | Xcode → Settings → Accounts → Manage Certificates → + Apple Distribution, then export it from Keychain Access as `.p12` and `base64 -i cert.p12 \| pbcopy` |
-
-The build number is the workflow run number, so every run is a new TestFlight build.
+The runner has no keychain with your distribution key, so it creates a distribution certificate through the API on a throwaway keychain each run. Apple limits distribution certificates per team (currently 3), so prefer the Mac script for routine uploads and revoke stale CI certificates under **Certificates, Identifiers & Profiles** if the workflow ever reports the limit.
 
 ### What was fixed for App Store / TestFlight
 

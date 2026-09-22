@@ -39,13 +39,13 @@ cd ~/hisense-remote
 
 Details: **[mobile/README.md](./mobile/README.md)**
 
-### TestFlight (paid Apple Developer account)
+### TestFlight
 
 ```bash
-APPLE_TEAM_ID=ABCDE12345 ./scripts/testflight.sh
+./scripts/testflight.sh
 ```
 
-Or run the **iOS TestFlight** GitHub Actions workflow. Secrets and setup: [mobile/README.md](./mobile/README.md#testflight-share-the-iphone-app-with-other-people).
+Signs with your existing Apple Developer account through the App Store Connect API (same flow as Rize) and uploads. Or run the **iOS TestFlight** GitHub Actions workflow. Details: [mobile/README.md](./mobile/README.md#testflight-share-the-iphone-app-with-other-people).
 
 ---
 
