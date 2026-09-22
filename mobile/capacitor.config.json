@@ -1,6 +1,6 @@
 {
   "appId": "com.kurbaitaev.tvremote",
-  "appName": "Sofaclick",
+  "appName": "Remoot",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

@@ -1,6 +1,6 @@
 {
-  "name": "Sofaclick — Free Roku Remote",
-  "short_name": "Sofaclick",
+  "name": "Remoot — Free Roku Remote",
+  "short_name": "Remoot",
   "description": "Free Roku remote in your browser. No App Store purchase. Phone controls your TV on your Wi‑Fi.",
   "start_url": "./",
   "scope": "./",

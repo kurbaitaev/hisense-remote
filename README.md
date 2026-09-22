@@ -1,4 +1,4 @@
-# Sofaclick — free Roku / Hisense remote
+# Remoot — free Roku / Hisense remote
 
 Control Roku TVs (including Hisense Roku) without a paid App Store remote.
 
