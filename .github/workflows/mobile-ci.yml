@@ -39,7 +39,11 @@ jobs:
           distribution: temurin
           java-version: 21
 
-      - uses: android-actions/setup-android@v3
+      - name: Install Android SDK platform 36 (runner ships the SDK and sdkmanager)
+        run: |
+          SDKMANAGER="$ANDROID_HOME/cmdline-tools/latest/bin/sdkmanager"
+          yes | "$SDKMANAGER" --licenses >/dev/null 2>&1 || true
+          "$SDKMANAGER" "platforms;android-36" "build-tools;36.0.0" "platform-tools" >/dev/null
 
       - uses: gradle/actions/setup-gradle@v4
 
