@@ -225,12 +225,15 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
             let flags = Int32(p.pointee.ifa_flags)
             guard flags & (IFF_UP | IFF_RUNNING) == (IFF_UP | IFF_RUNNING) else { continue }
             guard flags & IFF_LOOPBACK == 0 else { continue }
-            guard p.pointee.ifa_addr.pointee.sa_family == UInt8(AF_INET) else { continue }
+            // ifa_addr is NULL on some iOS interfaces (tunnels, cellular control
+            // interfaces); dereferencing it unconditionally crashes the app.
+            guard let addr = p.pointee.ifa_addr,
+                  addr.pointee.sa_family == UInt8(AF_INET) else { continue }
 
             var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
             getnameinfo(
-                p.pointee.ifa_addr,
-                socklen_t(p.pointee.ifa_addr.pointee.sa_len),
+                addr,
+                socklen_t(addr.pointee.sa_len),
                 &hostname,
                 socklen_t(hostname.count),
                 nil,
