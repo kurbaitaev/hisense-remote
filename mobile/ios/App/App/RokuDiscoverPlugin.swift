@@ -162,7 +162,7 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
             let senderIp: String = {
                 var host = [CChar](repeating: 0, count: Int(NI_MAXHOST))
                 var sa = from
-                withUnsafePointer(to: &sa) { ap in
+                _ = withUnsafePointer(to: &sa) { ap in
                     ap.withMemoryRebound(to: sockaddr.self, capacity: 1) { sap in
                         getnameinfo(sap, fromLen, &host, socklen_t(host.count), nil, 0, NI_NUMERICHOST)
                     }
