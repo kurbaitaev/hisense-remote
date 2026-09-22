@@ -1,4 +1,4 @@
-# TV Remote — free Roku / Hisense remote
+# Sofaclick — free Roku / Hisense remote
 
 Control Roku TVs (including Hisense Roku) without a paid App Store remote.
 

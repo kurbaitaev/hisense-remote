@@ -1,6 +1,6 @@
 {
   "appId": "com.kurbaitaev.tvremote",
-  "appName": "TV Remote",
+  "appName": "Sofaclick",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

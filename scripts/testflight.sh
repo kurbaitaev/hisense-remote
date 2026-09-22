@@ -1,5 +1,5 @@
 #!/usr/bin/env bash
-# Build a signed TV Remote .ipa and upload it to TestFlight — entirely from the
+# Build a signed Sofaclick .ipa and upload it to TestFlight — entirely from the
 # command line, the same way the Rize app is shipped:
 #
 #   * archive UNSIGNED (automatic signing fails on a team with no registered
@@ -41,10 +41,10 @@ EXPORT_DIR="$BUILD_DIR/export"
 : "${ASC_ISSUER_ID:=4cd18058-a288-478e-9bf4-4d8accc67911}"
 : "${ASC_KEY_PATH:=$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8}"
 : "${BUNDLE_ID:=com.kurbaitaev.tvremote}"
-: "${PROFILE_NAME:=TV Remote App Store}"
+: "${PROFILE_NAME:=Sofaclick App Store}"
 : "${DEVELOPER_DIR:=/Applications/Xcode.app/Contents/Developer}"
 export DEVELOPER_DIR ASC_KEY_ID ASC_ISSUER_ID ASC_KEY_PATH BUNDLE_ID PROFILE_NAME
-export APP_NAME="TV Remote"
+export APP_NAME="Sofaclick"
 
 if [[ "$(uname -s)" != "Darwin" ]]; then
   echo "error: iOS archives can only be built on macOS." >&2
@@ -65,7 +65,7 @@ VERSION_ARGS=("CURRENT_PROJECT_VERSION=$BUILD_NUMBER")
 [[ -n "${MARKETING_VERSION:-}" ]] && VERSION_ARGS+=("MARKETING_VERSION=$MARKETING_VERSION")
 
 echo ""
-echo "  TV Remote — TestFlight build"
+echo "  Sofaclick — TestFlight build"
 echo "  ────────────────────────────"
 echo "  Xcode:        $("$DEVELOPER_DIR/usr/bin/xcodebuild" -version | head -1)"
 echo "  Team:         $APPLE_TEAM_ID"

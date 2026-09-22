@@ -1,4 +1,4 @@
-# TV Remote — native iPhone / Android app
+# Sofaclick — native iPhone / Android app
 
 ## Research: how free remotes find your TV
 
@@ -50,7 +50,7 @@ In **Xcode**:
 3. **Signing & Capabilities** → Team → your free Apple ID  
 4. **Run ▶**  
 5. Phone: trust developer if asked  
-6. Open **TV Remote** → **Allow Local Network**  
+6. Open **Sofaclick** → **Allow Local Network**  
 7. App auto-searches (or tap **Find my TV**)
 
 No App Store fee for installs on your own devices.
@@ -70,9 +70,9 @@ Same pipeline as the Rize app: no Xcode IDE, no EAS, no cloud signing. Everythin
 | Team ID | `A58FFUY6DF` |
 | Bundle ID | `com.kurbaitaev.tvremote` |
 | API key | `~/.appstoreconnect/private_keys/AuthKey_AQZ687BDBN.p8` (the Rize key) |
-| Profile | `TV Remote App Store` (created automatically) |
+| Profile | `Sofaclick App Store` (created automatically) |
 
-**One manual step, once:** App Store Connect → **Apps → + → New App** → iOS, name "TV Remote", bundle ID `com.kurbaitaev.tvremote` (register it under **Identifiers** first if the dropdown does not list it, or just run the script once — it registers the bundle ID through the API), SKU `tvremote`. Apple exposes no API for creating the app record, so this is the only click required.
+**One manual step, once:** App Store Connect → **Apps → + → New App** → iOS, name "Sofaclick", bundle ID `com.kurbaitaev.tvremote` (register it under **Identifiers** first if the dropdown does not list it, or just run the script once — it registers the bundle ID through the API), SKU `tvremote`. Apple exposes no API for creating the app record, so this is the only click required.
 
 ### From your Mac
 
@@ -83,7 +83,7 @@ cd ~/hisense-remote
 
 What it does:
 
-1. `scripts/apple_signing.py` registers the bundle ID if needed, finds the Apple Distribution certificate already in your keychain (the one Rize uses), and creates + installs an App Store provisioning profile for TV Remote.
+1. `scripts/apple_signing.py` registers the bundle ID if needed, finds the Apple Distribution certificate already in your keychain (the one Rize uses), and creates + installs an App Store provisioning profile for Sofaclick.
 2. `cap sync ios`, then an **unsigned** archive with the release Xcode command-line tools (`/Applications/Xcode.app`; override with `DEVELOPER_DIR`). Automatic signing is avoided on purpose — it fails on a team with no registered devices.
 3. Export a signed `.ipa` with that certificate + profile.
 4. `xcrun altool --upload-app` with the API key.

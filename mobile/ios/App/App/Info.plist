@@ -7,7 +7,7 @@
 	<key>CFBundleDevelopmentRegion</key>
 	<string>en</string>
 	<key>CFBundleDisplayName</key>
-        <string>TV Remote</string>
+        <string>Sofaclick</string>
 	<key>CFBundleExecutable</key>
 	<string>$(EXECUTABLE_NAME)</string>
 	<key>CFBundleIdentifier</key>
@@ -50,7 +50,7 @@
 	<key>UIViewControllerBasedStatusBarAppearance</key>
 	<true/>
 	<key>NSLocalNetworkUsageDescription</key>
-	<string>TV Remote finds your Roku TV on Wi‑Fi so you can control it without a physical remote.</string>
+	<string>Sofaclick finds your Roku TV on Wi‑Fi so you can control it without a physical remote.</string>
 	<key>NSBonjourServices</key>
 	<array>
 		<string>_roku-ecp._tcp</string>

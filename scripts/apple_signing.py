@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 """
-Prepare Apple code-signing for TV Remote using only an App Store Connect API key.
+Prepare Apple code-signing for Sofaclick using only an App Store Connect API key.
 
 Same approach as the Rize build: no Xcode IDE, no automatic signing (fails on a
 team with no registered devices), no cloud signing. Everything goes through the
@@ -48,8 +48,8 @@ KEY_ID = env("ASC_KEY_ID")
 ISSUER_ID = env("ASC_ISSUER_ID")
 KEY_PATH = env("ASC_KEY_PATH", os.path.expanduser(f"~/.appstoreconnect/private_keys/AuthKey_{KEY_ID}.p8"))
 BUNDLE_ID = env("BUNDLE_ID", "com.kurbaitaev.tvremote")
-APP_NAME = env("APP_NAME", "TV Remote")
-PROFILE_NAME = env("PROFILE_NAME", "TV Remote App Store")
+APP_NAME = env("APP_NAME", "Sofaclick")
+PROFILE_NAME = env("PROFILE_NAME", "Sofaclick App Store")
 KEYCHAIN = env("KEYCHAIN")  # None = default (login) keychain
 CREATE_CERT = "--create-cert" in sys.argv
 
