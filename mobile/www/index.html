@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no,viewport-fit=cover">
 <meta name="apple-mobile-web-app-capable" content="yes">
 <meta name="theme-color" content="#0a0a0f">
-<title>TV Remote</title>
+<title>Remoot</title>
 <style>
 :root{
   --bg:#0a0a0f;--card:#14141f;--elev:#1c1c2a;--line:#2a2a3d;
@@ -74,7 +74,7 @@ input:focus{outline:none;border-color:var(--accent)}
 <body>
 <div class="app">
   <header>
-    <h1>TV Remote <span class="badge">Free</span></h1>
+    <h1>Remoot <span class="badge">Free</span></h1>
     <p id="status" class="sub">Native discovery · like official apps</p>
   </header>
 
@@ -255,7 +255,7 @@ async function findMyTv(opts = {}) {
   let list = [];
   try {
     if (!isNative()) {
-      msg("Open this inside the <strong style='color:var(--text)'>TV Remote app</strong> (not Safari). Websites cannot SSDP-scan like apps.", "err");
+      msg("Open this inside the <strong style='color:var(--text)'>Remoot app</strong> (not Safari). Websites cannot SSDP-scan like apps.", "err");
     } else if (preferSaved) {
       const saved = await trySavedTv();
       if (saved) list = [saved];
@@ -282,7 +282,7 @@ async function findMyTv(opts = {}) {
       "No Roku found.<br>" +
       "• Power the TV on<br>" +
       "• Same Wi‑Fi as this phone<br>" +
-      "• Settings → Privacy → <strong style='color:var(--text)'>Local Network</strong> → ON for TV Remote<br>" +
+      "• Settings → Privacy → <strong style='color:var(--text)'>Local Network</strong> → ON for Remoot<br>" +
       "• TV: Control by mobile apps → Enabled",
       "err",
     );

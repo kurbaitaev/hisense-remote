@@ -1,6 +1,6 @@
 {
-  "appId": "com.tvremote.free",
-  "appName": "TV Remote",
+  "appId": "com.kurbaitaev.tvremote",
+  "appName": "Remoot",
   "webDir": "www",
   "server": {
     "androidScheme": "https"

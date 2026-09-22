@@ -6,7 +6,7 @@ ROOT="$(cd "$(dirname "$0")/.." && pwd)"
 cd "$ROOT/mobile"
 
 echo ""
-echo "  TV Remote — native iPhone app"
+echo "  Remoot — native iPhone app"
 echo "  ─────────────────────────────"
 echo "  Discovery = SSDP (roku:ecp) + HTTP :8060"
 echo "  Same method as official apps / open-source remotes."

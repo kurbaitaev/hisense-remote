@@ -1,0 +1,93 @@
+name: iOS TestFlight
+
+# Builds, signs and uploads the iOS app to TestFlight on a macOS runner using
+# only the App Store Connect API key — the same flow as scripts/testflight.sh
+# on a Mac. The team, key ID and issuer ID are identifiers, not secrets, and
+# are baked into the script; the one secret is the private key itself.
+#
+# Repository secret (Settings → Secrets and variables → Actions):
+#   ASC_KEY_P8   Text of AuthKey_AQZ687BDBN.p8 (the key Rize already uses)
+#
+# The runner has no keychain with the distribution key, so the script creates
+# a distribution certificate through the API on a throwaway keychain
+# (CREATE_CERT=1). Apple allows only a few distribution certificates per team,
+# so the workflow runs on demand and on version tags, never on every push.
+#
+# The App Store Connect app record (bundle id com.kurbaitaev.tvremote) must
+# exist before the first upload — Apple has no API to create it.
+
+on:
+  workflow_dispatch:
+    inputs:
+      marketing_version:
+        description: "Version shown to testers (e.g. 1.0.1). Empty keeps the project value."
+        required: false
+        default: ""
+  push:
+    tags:
+      - "v*"
+
+concurrency:
+  group: ios-testflight
+  cancel-in-progress: false
+
+jobs:
+  upload:
+    name: Archive, sign and upload
+    runs-on: macos-15
+    timeout-minutes: 60
+    env:
+      ASC_KEY_ID: AQZ687BDBN
+      ASC_ISSUER_ID: 4cd18058-a288-478e-9bf4-4d8accc67911
+      APPLE_TEAM_ID: A58FFUY6DF
+      DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
+      KEYCHAIN: ${{ github.workspace }}/ci.keychain-db
+      KEYCHAIN_PASSWORD: ci
+      CREATE_CERT: "1"
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Check required secret
+        run: |
+          if [ -z "${{ secrets.ASC_KEY_P8 }}" ]; then
+            echo "::error::Missing repository secret ASC_KEY_P8 (contents of the App Store Connect API .p8 key)"
+            exit 1
+          fi
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: mobile/package-lock.json
+
+      - name: Write App Store Connect API key
+        run: |
+          mkdir -p "$HOME/.appstoreconnect/private_keys"
+          printf '%s\n' "${{ secrets.ASC_KEY_P8 }}" > "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+          chmod 600 "$HOME/.appstoreconnect/private_keys/AuthKey_${ASC_KEY_ID}.p8"
+
+      - name: Create throwaway keychain
+        run: |
+          security create-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security set-keychain-settings -lut 3600 "$KEYCHAIN"
+          security unlock-keychain -p "$KEYCHAIN_PASSWORD" "$KEYCHAIN"
+          security list-keychains -d user -s "$KEYCHAIN" $(security list-keychains -d user | tr -d '"')
+
+      - name: Archive, sign and upload
+        env:
+          BUILD_NUMBER: ${{ github.run_number }}
+          MARKETING_VERSION: ${{ github.event.inputs.marketing_version }}
+        run: ./scripts/testflight.sh
+
+      - name: Remove throwaway keychain
+        if: always()
+        run: security delete-keychain "$KEYCHAIN" || true
+
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: ios-testflight-logs
+          path: |
+            mobile/ios/build/archive.log
+            mobile/ios/build/export.log
+          if-no-files-found: ignore

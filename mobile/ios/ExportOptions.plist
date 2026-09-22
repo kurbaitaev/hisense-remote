@@ -1,0 +1,28 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+	<!-- Template used by scripts/testflight.sh; the __PLACEHOLDERS__ are filled in at build time.
+	     Manual signing: the archive is built unsigned and signed here with the distribution
+	     certificate + App Store profile that scripts/apple_signing.py installed. -->
+	<key>method</key>
+	<string>app-store-connect</string>
+	<key>destination</key>
+	<string>export</string>
+	<key>signingStyle</key>
+	<string>manual</string>
+	<key>teamID</key>
+	<string>__TEAM_ID__</string>
+	<key>signingCertificate</key>
+	<string>__CERT_SHA1__</string>
+	<key>provisioningProfiles</key>
+	<dict>
+		<key>__BUNDLE_ID__</key>
+		<string>__PROFILE_NAME__</string>
+	</dict>
+	<key>uploadSymbols</key>
+	<true/>
+	<key>manageAppVersionAndBuildNumber</key>
+	<false/>
+</dict>
+</plist>

@@ -1,4 +1,4 @@
-# TV Remote — free Roku / Hisense remote
+# Remoot — free Roku / Hisense remote
 
 Control Roku TVs (including Hisense Roku) without a paid App Store remote.
 
@@ -38,6 +38,14 @@ cd ~/hisense-remote
 4. Power TV on → app finds it via SSDP  
 
 Details: **[mobile/README.md](./mobile/README.md)**
+
+### TestFlight
+
+```bash
+./scripts/testflight.sh
+```
+
+Signs with your existing Apple Developer account through the App Store Connect API (same flow as Rize) and uploads. Or run the **iOS TestFlight** GitHub Actions workflow. Details: [mobile/README.md](./mobile/README.md#testflight-share-the-iphone-app-with-other-people).
 
 ---
 
