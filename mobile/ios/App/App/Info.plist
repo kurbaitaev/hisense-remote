@@ -71,7 +71,7 @@
 	<key>NSLocalNetworkUsageDescription</key>
 	<string>Remoot finds your Roku TV on Wi‑Fi so you can control it without a physical remote.</string>
 	<key>NSMicrophoneUsageDescription</key>
-	<string>Remoot listens only while you hold the mic button, so you can control your TV by voice.</string>
+	<string>Remoot listens only after you tap the mic, so you can control your TV by voice.</string>
 	<key>NSSpeechRecognitionUsageDescription</key>
 	<string>Remoot turns your voice command into a TV action, on your iPhone when possible.</string>
 	<key>NSBonjourServices</key>
