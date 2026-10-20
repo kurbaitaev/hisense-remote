@@ -12,6 +12,7 @@
 		50379B232058CBB4000EE86E /* capacitor.config.json in Resources */ = {isa = PBXBuildFile; fileRef = 50379B222058CBB4000EE86E /* capacitor.config.json */; };
 		504EC3081FED79650016851F /* AppDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 504EC3071FED79650016851F /* AppDelegate.swift */; };
 		9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */ = {isa = PBXBuildFile; fileRef = 9582B6822FE993A50072D4E8 /* SceneDelegate.swift */; };
+		B7C8D9E12FF0A1B20012AB01 /* VoicePlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = B7C8D9E02FF0A1B20012AB01 /* VoicePlugin.swift */; };
 		A1B2C3D41FED79650016851F /* RokuDiscoverPlugin.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D51FED79650016851F /* RokuDiscoverPlugin.swift */; };
 		A1B2C3D71FED79650016851F /* ViewController.swift in Sources */ = {isa = PBXBuildFile; fileRef = A1B2C3D61FED79650016851F /* ViewController.swift */; };
 		A1B2C3D91FED79650016851F /* PrivacyInfo.xcprivacy in Resources */ = {isa = PBXBuildFile; fileRef = A1B2C3D81FED79650016851F /* PrivacyInfo.xcprivacy */; };
@@ -27,6 +28,7 @@
 		504EC3041FED79650016851F /* App.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = App.app; sourceTree = BUILT_PRODUCTS_DIR; };
 		504EC3071FED79650016851F /* AppDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = AppDelegate.swift; sourceTree = "<group>"; };
 		9582B6822FE993A50072D4E8 /* SceneDelegate.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SceneDelegate.swift; sourceTree = "<group>"; };
+		B7C8D9E02FF0A1B20012AB01 /* VoicePlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = VoicePlugin.swift; sourceTree = "<group>"; };
 		A1B2C3D51FED79650016851F /* RokuDiscoverPlugin.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = RokuDiscoverPlugin.swift; sourceTree = "<group>"; };
 		A1B2C3D61FED79650016851F /* ViewController.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = ViewController.swift; sourceTree = "<group>"; };
 		A1B2C3D81FED79650016851F /* PrivacyInfo.xcprivacy */ = {isa = PBXFileReference; lastKnownFileType = text.xml; path = PrivacyInfo.xcprivacy; sourceTree = "<group>"; };
@@ -73,6 +75,7 @@
 				50379B222058CBB4000EE86E /* capacitor.config.json */,
 				504EC3071FED79650016851F /* AppDelegate.swift */,
 				9582B6822FE993A50072D4E8 /* SceneDelegate.swift */,
+				B7C8D9E02FF0A1B20012AB01 /* VoicePlugin.swift */,
 				A1B2C3D51FED79650016851F /* RokuDiscoverPlugin.swift */,
 				A1B2C3D61FED79650016851F /* ViewController.swift */,
 				A1B2C3D81FED79650016851F /* PrivacyInfo.xcprivacy */,
@@ -170,6 +173,7 @@
 			files = (
 				504EC3081FED79650016851F /* AppDelegate.swift in Sources */,
 				9582B6832FE993A70072D4E8 /* SceneDelegate.swift in Sources */,
+				B7C8D9E12FF0A1B20012AB01 /* VoicePlugin.swift in Sources */,
 				A1B2C3D41FED79650016851F /* RokuDiscoverPlugin.swift in Sources */,
 				A1B2C3D71FED79650016851F /* ViewController.swift in Sources */,
 			);

@@ -19,6 +19,16 @@ concurrency:
   cancel-in-progress: true
 
 jobs:
+  commands:
+    name: Voice command parser tests
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - run: node mobile/test/commands.test.js
+
   android:
     name: Android debug APK
     runs-on: ubuntu-latest
