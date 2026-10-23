@@ -13,5 +13,6 @@
   "ios": {
     "contentInset": "automatic",
     "allowsLinkPreview": false
-  }
+  },
+  "backgroundColor": "#0a0a0f"
 }
