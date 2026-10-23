@@ -195,13 +195,13 @@ input:focus{outline:none;border-color:var(--accent)}
 <script src="commands.js"></script>
 <script>
 "use strict";
-const KEY_IP = "roku-remote-ip", KEY_NAME = "roku-remote-name", KEY_LANG = "remoot-lang";
+const KEY_IP = "roku-remote-ip", KEY_NAME = "roku-remote-name", KEY_LANG = "remoot-lang", KEY_MAC = "roku-remote-mac";
 const $ = (id) => document.getElementById(id);
 const P = () => (window.Capacitor && window.Capacitor.Plugins) || {};
 const isNative = () => { try { return !!(window.Capacitor && Capacitor.isNativePlatform && Capacitor.isNativePlatform()); } catch { return false; } };
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
 
-const state = { ip: "", name: "", online: false, power: "", apps: [], showAll: false, recovering: null, scanning: false };
+const state = { ip: "", name: "", mac: "", online: false, power: "", apps: [], showAll: false, recovering: null, scanning: false, wantWake: false };
 const FALLBACK_APPS = [
   { id: "12", type: "appl", name: "Netflix" }, { id: "837", type: "appl", name: "YouTube" },
   { id: "13", type: "appl", name: "Prime Video" }, { id: "551012", type: "appl", name: "Apple TV" },
@@ -244,13 +244,13 @@ async function deviceInfo(ip, timeout = 1600) {
   if (r.status !== 200 || !/device-info/.test(r.data)) return null;
   const pick = (tag) => { const m = r.data.match(new RegExp(`<${tag}>([^<]*)<`)); return m ? m[1].trim() : ""; };
   return { name: pick("friendly-device-name") || pick("user-device-name") || pick("model-name") || "Roku TV",
-    power: pick("power-mode"), ecp: pick("ecp-setting-mode") };
+    power: pick("power-mode"), ecp: pick("ecp-setting-mode"), mac: pick("wifi-mac") || pick("ethernet-mac") };
 }
 
 /**
  * Send an ECP command. Retries once on a dropped connection (common right
- * after the TV reboots or wakes), then re-finds the TV (it may have a new IP)
- * and tries one last time. Shows a specific reason when it still fails.
+ * after the TV wakes), then checks whether the TV is still there. If it is
+ * asleep or still joining Wi‑Fi, the reconnect loop takes over quietly.
  */
 async function ecp(path, { quiet = false } = {}) {
   if (!state.ip) { toast("Not connected to a TV", true); return false; }
@@ -267,66 +267,136 @@ async function ecp(path, { quiet = false } = {}) {
       if (!quiet) toast(`TV answered ${r.status}`, true);
       return false;
     } catch (e) {
-      if (attempt === 0) { await sleep(250); continue; }        // stale connection: retry fresh
-      if (attempt === 1) { if (await recover()) continue; }      // TV moved / rebooted
+      if (attempt === 0) { await sleep(250); continue; }              // stale connection: retry fresh
+      if (attempt === 1) {
+        const info = await deviceInfo(state.ip, 1500).catch(() => null);
+        if (info) { rememberInfo(info); continue; }                    // still there: one more try
+      }
       break;
     }
   }
   markOffline();
-  if (!quiet) toast("Can't reach the TV. Is it on, and is this phone on the same Wi‑Fi (not cellular or a guest network)?", true, 5200);
+  reconnect();                                                          // keep watching in the background
+  if (!quiet) toast("The TV is asleep or still joining Wi‑Fi. Tap ⏻ to wake it.", true, 4500);
   return false;
 }
 
 /* ---------- connection state ---------- */
 function markOnline() {
-  if (!state.online) { state.online = true; }
+  state.online = true;
   setStatus("on", `${state.name || "Roku TV"} · ${state.ip}`);
 }
 function markOffline(text) {
   state.online = false;
-  setStatus("off", text || `${state.name || "TV"} not reachable · tap to retry`);
+  setStatus("off", text || `${state.name || "TV"} is asleep or off Wi‑Fi · tap ⏻ to wake`);
+}
+function rememberInfo(info) {
+  state.name = info.name || state.name;
+  state.power = info.power;
+  if (info.mac) {
+    state.mac = info.mac;
+    try { localStorage.setItem(KEY_MAC, info.mac); } catch {}
+  }
 }
 
-function connect(ip, name, { silent = false } = {}) {
-  state.ip = ip; state.name = name || "Roku TV";
-  try { localStorage.setItem(KEY_IP, ip); localStorage.setItem(KEY_NAME, state.name); } catch {}
-  markOnline();
+function showRemote() {
   $("setup").classList.add("hidden");
   $("remote").classList.remove("hidden");
   $("change").classList.remove("hidden");
+}
+
+function connect(ip, name, { silent = false } = {}) {
+  const changed = ip !== state.ip;
+  state.ip = ip; state.name = name || "Roku TV";
+  try { localStorage.setItem(KEY_IP, ip); localStorage.setItem(KEY_NAME, state.name); } catch {}
+  markOnline();
+  showRemote();
   if (!silent) toast("Connected");
-  loadApps();
+  if (changed || !state.apps.length || state.apps === FALLBACK_APPS) loadApps();
   refreshInfo();
 }
 
-// Re-find the TV after a failure. Shared by every caller so we never scan twice at once.
-function recover() {
+/* ---------- wake over Wi‑Fi ---------- */
+async function sendWake() {
+  const mac = state.mac || (() => { try { return localStorage.getItem(KEY_MAC) || ""; } catch { return ""; } })();
+  const W = P().RokuDiscover;
+  if (!mac) { toast("Turn the TV on once with its own remote so Remoot can learn how to wake it.", true, 5000); return false; }
+  if (!W?.wake) return false;
+  try {
+    const r = await W.wake({ mac, ip: state.ip });
+    return (r?.sent || 0) > 0;
+  } catch { return false; }
+}
+
+/**
+ * The one reconnect loop. Polls the TV every ~2.5 s for up to 2.5 minutes
+ * (a Roku's Wi‑Fi takes 1–2 minutes to come back after it wakes), re-searches
+ * the network every 30 s in case its address changed, and, when asked to
+ * wake, sends a magic packet every 8 s. Resolves true when the TV answers.
+ */
+function reconnect({ wake = false, timeout = 150000 } = {}) {
+  if (wake) state.wantWake = true;
+  state.deadline = Math.max(state.deadline || 0, Date.now() + timeout);  // a wake request extends a running loop
   if (state.recovering) return state.recovering;
   state.recovering = (async () => {
-    setStatus("busy", "Reconnecting…");
+    const t0 = Date.now();
+    let lastScan = Date.now(), lastWake = 0;
     try {
-      if (state.ip) {
-        const info = await deviceInfo(state.ip, 1800).catch(() => null);
-        if (info) { state.name = info.name; state.power = info.power; markOnline(); return true; }
+      while (Date.now() < state.deadline) {
+        if (!state.ip) return false;                                    // user switched TV
+        const secs = Math.round((Date.now() - t0) / 1000);
+        setStatus("busy", state.wantWake ? `Waking ${state.name || "the TV"}… ${secs}s`
+                                         : `Waiting for ${state.name || "the TV"} on Wi‑Fi… ${secs}s`);
+        if (state.wantWake && Date.now() - lastWake > 8000) { lastWake = Date.now(); sendWake(); }
+        const info = await deviceInfo(state.ip, 1500).catch(() => null);
+        if (info) {
+          rememberInfo(info);
+          markOnline();
+          if (state.apps === FALLBACK_APPS || !state.apps.length) loadApps();
+          return true;
+        }
+        if (Date.now() - lastScan > 30000) {
+          lastScan = Date.now();
+          const found = await nativeScan().catch(() => []);
+          const same = found.find((t) => t.name === state.name) || (found.length === 1 ? found[0] : null);
+          if (same) {
+            if (same.ip !== state.ip) toast(`TV found at a new address: ${same.ip}`);
+            connect(same.ip, same.name, { silent: true });
+            return true;
+          }
+        }
+        await sleep(2500);
       }
-      const found = await nativeScan().catch(() => []);
-      if (!found.length) { markOffline(); return false; }
-      const same = found.find((t) => t.name === state.name) || found[0];
-      if (same.ip !== state.ip) toast(`TV found at a new address: ${same.ip}`);
-      connect(same.ip, same.name, { silent: true });
-      return true;
-    } finally { state.recovering = null; }
+      markOffline();
+      return false;
+    } finally {
+      state.recovering = null;
+      state.wantWake = false;
+      state.deadline = 0;
+    }
   })();
   return state.recovering;
 }
 
+async function wakeTv() {
+  toast("Waking the TV…");
+  const ok = await reconnect({ wake: true });
+  if (!ok) {
+    toast("Couldn't wake the TV. Turn it on with its remote. To make waking reliable, turn on TV Settings → System → Power → Fast TV start.", true, 7000);
+    return false;
+  }
+  if (state.power && state.power !== "PowerOn") {
+    if (await ecp("/keypress/PowerOn", { quiet: true })) state.power = "PowerOn";
+  }
+  toast("TV on");
+  return true;
+}
+
 async function refreshInfo() {
-  if (!state.ip) return;
-  try {
-    const info = await deviceInfo(state.ip, 1800);
-    if (info) { state.power = info.power; state.name = info.name; markOnline(); }
-    else markOffline();
-  } catch { recover(); }
+  if (!state.ip || state.recovering) return;
+  const info = await deviceInfo(state.ip, 1800).catch(() => null);
+  if (info) { rememberInfo(info); markOnline(); }
+  else { markOffline(); reconnect(); }
 }
 
 /* ---------- discovery ---------- */
@@ -451,7 +521,10 @@ function renderApps() {
 
 /* ---------- keys ---------- */
 async function powerToggle() {
-  await refreshInfo();
+  if (!state.online) { await wakeTv(); return; }
+  const info = await deviceInfo(state.ip, 1500).catch(() => null);
+  if (!info) { await wakeTv(); return; }
+  rememberInfo(info);
   const on = state.power === "PowerOn" || state.power === "";
   if (await ecp(on ? "/keypress/PowerOff" : "/keypress/PowerOn")) {
     state.power = on ? "DisplayOff" : "PowerOn";
@@ -490,7 +563,9 @@ async function typeText(text) {
 /* ---------- commands (voice + typed) ---------- */
 async function runPlan(plan) {
   for (const s of plan.steps) {
-    if (s.key) {
+    if (s.key === "PowerOn" && !state.online) {
+      if (!(await wakeTv())) return false;
+    } else if (s.key) {
       for (let i = 0; i < (s.times || 1); i++) { if (!(await ecp(`/keypress/${s.key}`, { quiet: i > 0 }))) return false; if (s.times > 1) await sleep(140); }
     } else if (s.launch) {
       if (!(await ecp(`/launch/${encodeURIComponent(s.launch)}`))) return false;
@@ -576,9 +651,9 @@ $("cmd").addEventListener("keydown", (e) => {
 $("type-go").onclick = async () => { const t = $("type-text").value; if (t && await typeText(t)) { $("type-text").value = ""; toast("Sent"); } };
 $("type-text").addEventListener("keydown", (e) => { if (e.key === "Enter") $("type-go").click(); });
 $("more").onclick = () => { state.showAll = !state.showAll; renderApps(); };
-$("status").onclick = () => { if (state.ip) recover(); else findMyTv(); };
+$("status").onclick = () => { if (!state.ip) findMyTv(); else if (state.online) refreshInfo(); else reconnect(); };
 $("change").onclick = () => {
-  state.ip = ""; state.online = false;
+  state.ip = ""; state.online = false; state.mac = "";
   $("remote").classList.add("hidden"); $("setup").classList.remove("hidden"); $("change").classList.add("hidden");
   setStatus("", "Pick a TV"); msg(""); showList([]);
 };
@@ -587,11 +662,27 @@ $("change").onclick = () => {
 function onResume() { if (state.ip && document.visibilityState === "visible") refreshInfo(); }
 document.addEventListener("visibilitychange", onResume);
 try { P().App && P().App.addListener("resume", onResume); } catch {}
-setInterval(() => { if (state.ip && document.visibilityState === "visible" && !state.recovering) refreshInfo(); }, 15000);
+setInterval(() => { if (state.ip && document.visibilityState === "visible") refreshInfo(); }, 15000);
 
 initLang();
 if (isNative()) {
-  setTimeout(() => findMyTv({ preferSaved: true }), 350);
+  let savedIp = "", savedName = "", savedMac = "";
+  try { savedIp = localStorage.getItem(KEY_IP) || ""; savedName = localStorage.getItem(KEY_NAME) || ""; savedMac = localStorage.getItem(KEY_MAC) || ""; } catch {}
+  if (savedIp) {
+    // Known TV: show the remote at once. If the TV is asleep or still joining
+    // Wi‑Fi, the status line says so and the app connects when it appears.
+    state.ip = savedIp; state.name = savedName || "Roku TV"; state.mac = savedMac;
+    state.apps = FALLBACK_APPS; renderApps();
+    showRemote();
+    setStatus("busy", `Connecting to ${state.name}…`);
+    setTimeout(async () => {
+      const info = await deviceInfo(savedIp, 1800).catch(() => null);
+      if (info) { rememberInfo(info); connect(savedIp, info.name, { silent: true }); }
+      else reconnect();
+    }, 300);
+  } else {
+    setTimeout(() => findMyTv(), 350);
+  }
 } else {
   setStatus("off", "Open in the Remoot app");
   msg("Install the Remoot app. Safari websites can't find TVs on your Wi‑Fi.", "err");

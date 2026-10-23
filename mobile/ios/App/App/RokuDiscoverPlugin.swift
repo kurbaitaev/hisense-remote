@@ -20,6 +20,7 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
     public let pluginMethods: [CAPPluginMethod] = [
         CAPPluginMethod(name: "scan", returnType: CAPPluginReturnPromise),
         CAPPluginMethod(name: "probe", returnType: CAPPluginReturnPromise),
+        CAPPluginMethod(name: "wake", returnType: CAPPluginReturnPromise),
     ]
 
     /// Full network scan (SSDP + subnet HTTP).
@@ -208,6 +209,103 @@ public class RokuDiscoverPlugin: CAPPlugin, CAPBridgedPlugin {
                 let host = String(value[r])
                 if isPrivateIPv4(host) { return host }
             }
+        }
+        return nil
+    }
+
+    // MARK: - Wake over Wi-Fi (magic packet)
+
+    /// Send a Wake-on-LAN magic packet so a sleeping Roku TV turns its Wi-Fi
+    /// back on. Unicast to the TV's last IP always works with the Local
+    /// Network permission; the broadcast copies need Apple's multicast
+    /// entitlement on iOS 14+ and are tried anyway (failures are reported).
+    @objc func wake(_ call: CAPPluginCall) {
+        guard let macStr = call.getString("mac"), let mac = Self.parseMac(macStr) else {
+            call.reject("mac required (aa:bb:cc:dd:ee:ff)")
+            return
+        }
+        let ip = call.getString("ip")
+        DispatchQueue.global(qos: .userInitiated).async {
+            var packet = [UInt8](repeating: 0xFF, count: 6)
+            for _ in 0..<16 { packet.append(contentsOf: mac) }
+
+            var targets: [String] = []
+            if let ip, !ip.isEmpty { targets.append(ip) }
+            if let b = Self.localBroadcast() { targets.append(b) }
+            targets.append("255.255.255.255")
+
+            let sock = socket(AF_INET, SOCK_DGRAM, IPPROTO_UDP)
+            guard sock >= 0 else { call.reject("socket failed"); return }
+            defer { close(sock) }
+            var yes: Int32 = 1
+            setsockopt(sock, SOL_SOCKET, SO_BROADCAST, &yes, socklen_t(MemoryLayout.size(ofValue: yes)))
+
+            var results: [[String: Any]] = []
+            var okCount = 0
+            for round in 0..<3 {
+                for host in targets {
+                    for port in [UInt16(9), UInt16(7)] {
+                        var addr = sockaddr_in()
+                        addr.sin_len = UInt8(MemoryLayout<sockaddr_in>.size)
+                        addr.sin_family = sa_family_t(AF_INET)
+                        addr.sin_port = port.bigEndian
+                        addr.sin_addr.s_addr = inet_addr(host)
+                        let n = packet.withUnsafeBytes { buf in
+                            withUnsafePointer(to: &addr) { ap in
+                                ap.withMemoryRebound(to: sockaddr.self, capacity: 1) { sap in
+                                    sendto(sock, buf.baseAddress, buf.count, 0, sap, socklen_t(MemoryLayout<sockaddr_in>.size))
+                                }
+                            }
+                        }
+                        let ok = n == packet.count
+                        if ok { okCount += 1 }
+                        if round == 0 {
+                            results.append(["to": host, "port": Int(port), "ok": ok, "errno": ok ? 0 : Int(errno)])
+                        }
+                    }
+                }
+                usleep(120_000)
+            }
+            call.resolve(["sent": okCount, "results": results])
+        }
+    }
+
+    private static func parseMac(_ s: String) -> [UInt8]? {
+        let hex = s.lowercased().filter { "0123456789abcdef".contains($0) }
+        guard hex.count == 12 else { return nil }
+        var out: [UInt8] = []
+        var i = hex.startIndex
+        while i < hex.endIndex {
+            let j = hex.index(i, offsetBy: 2)
+            guard let b = UInt8(hex[i..<j], radix: 16) else { return nil }
+            out.append(b)
+            i = j
+        }
+        return out
+    }
+
+    /// Directed broadcast address of the phone's Wi-Fi subnet, e.g. 192.168.0.255.
+    private static func localBroadcast() -> String? {
+        var ifaddr: UnsafeMutablePointer<ifaddrs>?
+        guard getifaddrs(&ifaddr) == 0, let first = ifaddr else { return nil }
+        defer { freeifaddrs(ifaddr) }
+        var ptr: UnsafeMutablePointer<ifaddrs>? = first
+        while let p = ptr {
+            defer { ptr = p.pointee.ifa_next }
+            let flags = Int32(p.pointee.ifa_flags)
+            guard flags & (IFF_UP | IFF_RUNNING) == (IFF_UP | IFF_RUNNING), flags & IFF_LOOPBACK == 0 else { continue }
+            guard let addr = p.pointee.ifa_addr, addr.pointee.sa_family == UInt8(AF_INET),
+                  let mask = p.pointee.ifa_netmask else { continue }
+            let a = addr.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr.s_addr }
+            let m = mask.withMemoryRebound(to: sockaddr_in.self, capacity: 1) { $0.pointee.sin_addr.s_addr }
+            let ipHost = UInt32(bigEndian: a)
+            // private IPv4 only (Wi-Fi LAN, not cellular)
+            let first = ipHost >> 24, second = (ipHost >> 16) & 0xFF
+            guard first == 10 || (first == 192 && second == 168) || (first == 172 && second >= 16 && second <= 31) else { continue }
+            var b = in_addr(s_addr: a | ~m)
+            var buf = [CChar](repeating: 0, count: Int(INET_ADDRSTRLEN))
+            inet_ntop(AF_INET, &b, &buf, socklen_t(INET_ADDRSTRLEN))
+            return String(cString: buf)
         }
         return nil
     }

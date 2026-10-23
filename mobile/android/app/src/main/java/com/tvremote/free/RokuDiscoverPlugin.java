@@ -90,6 +90,79 @@ public class RokuDiscoverPlugin extends Plugin {
         });
     }
 
+    /** Wake-on-LAN magic packet to a sleeping Roku TV (unicast + broadcast). */
+    @PluginMethod
+    public void wake(PluginCall call) {
+        final String macStr = call.getString("mac", "");
+        final String ip = call.getString("ip", "");
+        final String hex = macStr == null ? "" : macStr.replaceAll("[^0-9A-Fa-f]", "");
+        if (hex.length() != 12) {
+            call.reject("mac required (aa:bb:cc:dd:ee:ff)");
+            return;
+        }
+        new Thread(() -> {
+            byte[] mac = new byte[6];
+            for (int i = 0; i < 6; i++) mac[i] = (byte) Integer.parseInt(hex.substring(i * 2, i * 2 + 2), 16);
+            byte[] packet = new byte[6 + 16 * 6];
+            for (int i = 0; i < 6; i++) packet[i] = (byte) 0xFF;
+            for (int i = 6; i < packet.length; i += 6) System.arraycopy(mac, 0, packet, i, 6);
+            List<String> targets = new ArrayList<>();
+            if (ip != null && !ip.isEmpty()) targets.add(ip);
+            String prefix = localPrefixForWake();
+            if (prefix != null) targets.add(prefix + ".255");
+            targets.add("255.255.255.255");
+            int sent = 0;
+            JSArray results = new JSArray();
+            try (DatagramSocket sock = new DatagramSocket()) {
+                sock.setBroadcast(true);
+                for (int round = 0; round < 3; round++) {
+                    for (String host : targets) {
+                        for (int port : new int[] {9, 7}) {
+                            boolean ok = true;
+                            try {
+                                sock.send(new DatagramPacket(packet, packet.length, InetAddress.getByName(host), port));
+                                sent++;
+                            } catch (Exception e) {
+                                ok = false;
+                            }
+                            if (round == 0) {
+                                JSObject r = new JSObject();
+                                r.put("to", host);
+                                r.put("port", port);
+                                r.put("ok", ok);
+                                results.put(r);
+                            }
+                        }
+                    }
+                    Thread.sleep(120);
+                }
+            } catch (Exception e) {
+                Log.w(TAG, "wake failed", e);
+            }
+            JSObject out = new JSObject();
+            out.put("sent", sent);
+            out.put("results", results);
+            call.resolve(out);
+        }).start();
+    }
+
+    private static String localPrefixForWake() {
+        try {
+            for (NetworkInterface ni : Collections.list(NetworkInterface.getNetworkInterfaces())) {
+                if (!ni.isUp() || ni.isLoopback()) continue;
+                for (InetAddress a : Collections.list(ni.getInetAddresses())) {
+                    String h = a.getHostAddress();
+                    if (h == null || h.contains(":")) continue;
+                    if (h.startsWith("192.168.") || h.startsWith("10.") || h.matches("^172\\.(1[6-9]|2\\d|3[01])\\..*")) {
+                        return h.substring(0, h.lastIndexOf('.'));
+                    }
+                }
+            }
+        } catch (Exception ignored) {
+        }
+        return null;
+    }
+
     @PluginMethod
     public void probe(PluginCall call) {
         String ip = call.getString("ip");
