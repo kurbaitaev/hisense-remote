@@ -6,7 +6,7 @@ name: iOS TestFlight
 # are baked into the script; the one secret is the private key itself.
 #
 # Repository secret (Settings → Secrets and variables → Actions):
-#   ASC_KEY_P8   Text of AuthKey_AQZ687BDBN.p8 (the key Rize already uses)
+#   ASC_KEY_P8   Text of this app's own App Store Connect API key (.p8). Do not reuse the Rize key.
 #
 # The runner has no keychain with the distribution key, so the script creates
 # a distribution certificate through the API on a throwaway keychain
@@ -37,7 +37,7 @@ jobs:
     runs-on: macos-15
     timeout-minutes: 60
     env:
-      ASC_KEY_ID: AQZ687BDBN
+      ASC_KEY_ID: ${{ secrets.ASC_KEY_ID }}
       ASC_ISSUER_ID: 4cd18058-a288-478e-9bf4-4d8accc67911
       APPLE_TEAM_ID: A58FFUY6DF
       DEVELOPER_DIR: /Applications/Xcode.app/Contents/Developer
